@@ -153,6 +153,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/campaigns/:campaignId/real-spend', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const spendData = await storage.getAdSpend(campaignId);
+      const realTotal = spendData.reduce((sum, spend) => 
+        sum + parseFloat(spend.spend), 0
+      );
+      res.json({ 
+        totalSpend: realTotal, 
+        dataPoints: spendData.length,
+        dailyBreakdown: spendData.map(s => ({
+          date: s.date,
+          spend: parseFloat(s.spend),
+          impressions: s.impressions,
+          reach: s.reach
+        }))
+      });
+    } catch (error) {
+      console.error('Error getting real spend:', error);
+      res.status(500).json({ error: 'Failed to get real spend data' });
+    }
+  });
+
   app.post('/api/facebook/sync-all', async (req, res) => {
     try {
       const stats = await syncAllCampaigns();
@@ -558,7 +581,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // Also create/update ad spend record
-          await storage.createAdSpend({
+          await storage.upsertAdSpend({
             campaignId: internalCampaign.campaignId,
             date: endDate.toISOString().split('T')[0],
             spend: spend.toString(),

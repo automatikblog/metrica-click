@@ -201,16 +201,21 @@ export class FacebookAdsClient {
           frequency: insight.frequency.toString()
         };
 
-        await storage.createAdSpend(adSpendData);
+        await storage.upsertAdSpend(adSpendData);
         totalSpend += insight.spend;
         dataPointsCreated++;
       }
 
-      // Update campaign totals
+      // Update campaign totals - Calculate REAL total from all ad spend data
+      const allSpendData = await storage.getAdSpend(internalCampaignId);
+      const realTotalSpend = allSpendData.reduce((sum, spend) => 
+        sum + parseFloat(spend.spend), 0
+      );
+
       const existingCampaign = await storage.getCampaignByCampaignId(internalCampaignId);
       if (existingCampaign) {
         await storage.updateCampaign(internalCampaignId, {
-          totalSpend: totalSpend.toString()
+          totalSpend: realTotalSpend.toString()
         });
       }
 

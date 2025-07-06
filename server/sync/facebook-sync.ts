@@ -158,8 +158,8 @@ export class FacebookSyncService {
     try {
       console.log(`[FB-SYNC] Syncing campaign ${internalCampaignId} -> FB:${facebookCampaignId}`);
       
-      // Get last 7 days of data
-      const dateRange = getDateRange(days);
+      // Get last 30 days of data to ensure comprehensive sync
+      const dateRange = getDateRange(30);
       
       // Sync the campaign data
       await facebookClient.syncCampaignData(

@@ -21,6 +21,7 @@ import {
   type InsertConversion,
   type InsertCampaignSettings
 } from "@shared/schema";
+import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -52,6 +53,7 @@ export interface IStorage {
   // Ad Spend Operations
   getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]>;
   createAdSpend(adSpend: InsertAdSpend): Promise<AdSpend>;
+  upsertAdSpend(adSpend: InsertAdSpend): Promise<AdSpend>;
   updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined>;
   
   // Conversion Operations
@@ -227,7 +229,6 @@ export class MemStorage implements IStorage {
 }
 
 import { db } from "./db";
-import { eq } from "drizzle-orm";
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
@@ -348,6 +349,24 @@ export class DatabaseStorage implements IStorage {
     const [spend] = await db
       .insert(adSpend)
       .values(insertAdSpend)
+      .returning();
+    return spend;
+  }
+
+  async upsertAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
+    const [spend] = await db
+      .insert(adSpend)
+      .values(insertAdSpend)
+      .onConflictDoUpdate({
+        target: [adSpend.campaignId, adSpend.date],
+        set: {
+          spend: sql`excluded.spend`,
+          impressions: sql`excluded.impressions`,
+          reach: sql`excluded.reach`, 
+          frequency: sql`excluded.frequency`,
+          updatedAt: new Date()
+        }
+      })
       .returning();
     return spend;
   }
