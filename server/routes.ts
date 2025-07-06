@@ -10,6 +10,7 @@ import { smartSyncService } from "./utils/smart-sync";
 import { eq } from "drizzle-orm";
 import { adSpend } from "@shared/schema";
 import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
+import { extractSessionId, findClickBySessionId, normalizeConversionData, updateCampaignMetrics } from "./webhook-utils";
 import passport from "passport";
 import session from "express-session";
 
@@ -722,6 +723,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching campaign conversions:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+
+
+  // Webhook endpoint for external conversions (Hotmart, custom checkout)
+  app.post("/conversion", async (req, res) => {
+    const startTime = Date.now();
+    const webhookId = `wh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    console.log(`[WEBHOOK-${webhookId}] Received conversion webhook:`, {
+      body: req.body,
+      headers: req.headers,
+      ip: req.ip
+    });
+    
+    try {
+      // 1. Extract SRC/SCK from request
+      const sessionId = extractSessionId(req.body);
+      console.log(`[WEBHOOK-${webhookId}] Extracted session ID: ${sessionId}`);
+      
+      // 2. Validate and find click record
+      const click = await findClickBySessionId(sessionId);
+      console.log(`[WEBHOOK-${webhookId}] Found click record: ${click.clickId} for campaign: ${click.campaignId}`);
+      
+      // 3. Check for duplicate conversion
+      const existingConversions = await storage.getConversionsByClickId(click.clickId);
+      if (existingConversions.length > 0) {
+        console.log(`[WEBHOOK-${webhookId}] Duplicate conversion detected, returning existing conversion`);
+        return res.json({ 
+          success: true, 
+          conversionId: existingConversions[0].id,
+          clickId: click.clickId,
+          message: 'Conversion already exists',
+          duplicate: true
+        });
+      }
+      
+      // 4. Normalize conversion data
+      const conversionData = normalizeConversionData(req.body, click);
+      console.log(`[WEBHOOK-${webhookId}] Normalized conversion data:`, conversionData);
+      
+      // 5. Save conversion
+      const conversion = await storage.createConversion(conversionData);
+      console.log(`[WEBHOOK-${webhookId}] Created conversion: ${conversion.id}`);
+      
+      // 6. Update campaign metrics
+      await updateCampaignMetrics(click.campaignId, conversionData);
+      console.log(`[WEBHOOK-${webhookId}] Updated campaign metrics for: ${click.campaignId}`);
+      
+      // 7. Return success response
+      const processingTime = Date.now() - startTime;
+      console.log(`[WEBHOOK-${webhookId}] Successfully processed in ${processingTime}ms`);
+      
+      res.json({ 
+        success: true, 
+        conversionId: conversion.id,
+        clickId: click.clickId,
+        campaignId: click.campaignId,
+        processingTime: `${processingTime}ms`,
+        webhookId
+      });
+      
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      const errorResponse = {
+        success: false,
+        error: errorMessage,
+        timestamp: new Date().toISOString(),
+        processingTime: `${processingTime}ms`,
+        webhookId
+      };
+      
+      console.error(`[WEBHOOK-${webhookId}] Failed after ${processingTime}ms:`, error);
+      res.status(400).json(errorResponse);
     }
   });
 

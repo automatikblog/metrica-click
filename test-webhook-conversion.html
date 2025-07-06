@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Webhook Conversão - MétricaClick</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        .test-section h3 {
+            color: #555;
+            margin-top: 0;
+        }
+        .button {
+            background: #007cba;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #005a8b;
+        }
+        .button.danger {
+            background: #dc3545;
+        }
+        .button.danger:hover {
+            background: #c82333;
+        }
+        .result {
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .result.success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .result.error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #e7f3ff;
+            border: 1px solid #b6d7ff;
+            color: #004085;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .clickid-input {
+            width: 400px;
+            padding: 8px;
+            margin: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 Teste Sistema Webhook Conversão</h1>
+        
+        <div class="info">
+            <strong>Como testar:</strong><br>
+            1. Primeiro gere um click usando o gerador de clicks<br>
+            2. Copie o clickID gerado<br>
+            3. Use os botões abaixo para simular webhooks de conversão<br>
+            4. Verifique se a conversão aparece no dashboard
+        </div>
+
+        <!-- Input para ClickID -->
+        <div class="test-section">
+            <h3>🎯 ClickID para Teste</h3>
+            <input type="text" id="clickIdInput" class="clickid-input" 
+                   placeholder="Cole aqui o clickID (ex: mc_automatikblog-main_1751843549158)"
+                   value="mc_automatikblog-main_1751843549158">
+            <button class="button" onclick="generateNewClick()">Gerar Novo Click</button>
+        </div>
+
+        <!-- Teste Hotmart -->
+        <div class="test-section">
+            <h3>📦 Webhook Hotmart</h3>
+            <p>Simula uma conversão vinda da plataforma Hotmart usando campo SCK:</p>
+            <button class="button" onclick="testHotmartWebhook()">Testar Webhook Hotmart (R$ 297)</button>
+            <button class="button" onclick="testHotmartLead()">Testar Lead Hotmart</button>
+            <div id="hotmartResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Teste Checkout Próprio -->
+        <div class="test-section">
+            <h3>🛒 Webhook Checkout Próprio</h3>
+            <p>Simula uma conversão vinda de checkout próprio usando campo SRC:</p>
+            <button class="button" onclick="testCustomCheckout()">Testar Checkout Próprio (R$ 497)</button>
+            <button class="button" onclick="testCustomLead()">Testar Lead Próprio</button>
+            <div id="customResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Teste Dados Genéricos -->
+        <div class="test-section">
+            <h3>⚙️ Webhook Genérico</h3>
+            <p>Simula webhook com estrutura de dados genérica:</p>
+            <button class="button" onclick="testGenericWebhook()">Testar Webhook Genérico (R$ 199)</button>
+            <button class="button" onclick="testGenericError()">Testar Erro (ClickID Inválido)</button>
+            <div id="genericResult" class="result" style="display: none;"></div>
+        </div>
+
+        <!-- Teste Duplicação -->
+        <div class="test-section">
+            <h3>🔄 Teste Anti-Duplicação</h3>
+            <p>Testa se o sistema previne conversões duplicadas:</p>
+            <button class="button" onclick="testDuplicateConversion()">Enviar Conversão Duplicada</button>
+            <div id="duplicateResult" class="result" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function getBaseUrl() {
+            return window.location.protocol + '//' + window.location.host;
+        }
+
+        function getClickId() {
+            return document.getElementById('clickIdInput').value.trim();
+        }
+
+        function showResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.className = `result ${isError ? 'error' : 'success'}`;
+            element.textContent = JSON.stringify(data, null, 2);
+            element.style.display = 'block';
+        }
+
+        async function generateNewClick() {
+            try {
+                const response = await fetch(`${getBaseUrl()}/track/automatikblog-main?format=json&referrer=test`, {
+                    method: 'GET'
+                });
+                const data = await response.json();
+                
+                if (data.clickid) {
+                    document.getElementById('clickIdInput').value = data.clickid;
+                    alert(`Novo clickID gerado: ${data.clickid}`);
+                }
+            } catch (error) {
+                alert('Erro ao gerar click: ' + error.message);
+            }
+        }
+
+        async function testHotmartWebhook() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                SCK: clickId,
+                event: "PURCHASE_COMPLETED",
+                product: "Curso Digital Avançado",
+                purchase_value: 297.00,
+                currency: "BRL",
+                buyer_email: "cliente@email.com",
+                transaction_id: "HM_" + Date.now()
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('hotmartResult', data, !data.success);
+            } catch (error) {
+                showResult('hotmartResult', { error: error.message }, true);
+            }
+        }
+
+        async function testHotmartLead() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                SCK: clickId,
+                event_type: "lead",
+                product: "Newsletter Marketing",
+                buyer_email: "lead@email.com"
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('hotmartResult', data, !data.success);
+            } catch (error) {
+                showResult('hotmartResult', { error: error.message }, true);
+            }
+        }
+
+        async function testCustomCheckout() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                SRC: clickId,
+                order_total: 497.00,
+                order_currency: "BRL",
+                event_type: "purchase",
+                customer_email: "comprador@email.com",
+                order_id: "ORD_" + Date.now()
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('customResult', data, !data.success);
+            } catch (error) {
+                showResult('customResult', { error: error.message }, true);
+            }
+        }
+
+        async function testCustomLead() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                SRC: clickId,
+                action: "signup",
+                type: "lead",
+                email: "novoteste@email.com"
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('customResult', data, !data.success);
+            } catch (error) {
+                showResult('customResult', { error: error.message }, true);
+            }
+        }
+
+        async function testGenericWebhook() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                session_id: clickId,
+                amount: 199.99,
+                currency: "BRL",
+                conversion_type: "purchase"
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('genericResult', data, !data.success);
+            } catch (error) {
+                showResult('genericResult', { error: error.message }, true);
+            }
+        }
+
+        async function testGenericError() {
+            const webhookData = {
+                SCK: "clickid_inexistente_123",
+                purchase_value: 299.00
+            };
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data = await response.json();
+                showResult('genericResult', data, true);
+            } catch (error) {
+                showResult('genericResult', { error: error.message }, true);
+            }
+        }
+
+        async function testDuplicateConversion() {
+            const clickId = getClickId();
+            if (!clickId) {
+                alert('Por favor, insira um clickID válido');
+                return;
+            }
+
+            const webhookData = {
+                SCK: clickId,
+                purchase_value: 297.00,
+                product: "Teste Duplicação"
+            };
+
+            try {
+                // Enviar primeira conversão
+                const response1 = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data1 = await response1.json();
+                
+                // Enviar segunda conversão (duplicada)
+                const response2 = await fetch(`${getBaseUrl()}/conversion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(webhookData)
+                });
+                const data2 = await response2.json();
+                
+                const result = {
+                    primeira_conversao: data1,
+                    segunda_conversao_duplicada: data2
+                };
+                
+                showResult('duplicateResult', result, false);
+            } catch (error) {
+                showResult('duplicateResult', { error: error.message }, true);
+            }
+        }
+    </script>
+</body>
+</html>
