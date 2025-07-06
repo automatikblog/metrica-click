@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Tracking Page</title>
+    <script src="http://localhost:5000/mc.js?attribution=lastpaid&cookiedomain=localhost&cookieduration=90&defaultcampaignid=683f45642498fc6fe758357f&regviewonce=false"></script>
+</head>
+<body>
+    <h1>Test Page for MétricaClick Tracking</h1>
+    <p>This page is used to test the tracking script.</p>
+    <p>Open browser console to see tracking logs.</p>
+    
+    <script>
+        // Add some debug logging
+        console.log('Page loaded');
+        console.log('Current cookies:', document.cookie);
+        console.log('SessionStorage mcclickid:', sessionStorage.getItem('mcclickid'));
+        console.log('URL params:', window.location.search);
+    </script>
+</body>
+</html>
