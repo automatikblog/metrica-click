@@ -1,11 +1,13 @@
 import { StatsCards } from "@/components/stats-cards";
 import { RecentActivity } from "@/components/recent-activity";
+import { DateRangeSelector, type DateRange } from "@/components/date-range-selector";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { subDays } from "date-fns";
 
 export default function Dashboard() {
   const [config, setConfig] = useState({
@@ -14,6 +16,13 @@ export default function Dashboard() {
     defaultCampaignId: "683f45642498fc6fe758357f",
     cookieDomain: "automatikblog.com",
     regViewOnce: false
+  });
+
+  // Date range state - defaults to last 30 days
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+    preset: "30d"
   });
 
   const generateScriptUrl = () => {
@@ -39,6 +48,12 @@ export default function Dashboard() {
             <p className="text-gray-600">Monitor your traffic tracking performance</p>
           </div>
           <div className="flex items-center space-x-4">
+            {/* Date Range Selector */}
+            <DateRangeSelector
+              value={dateRange}
+              onChange={setDateRange}
+              className="mr-4"
+            />
             <button className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors">
               <i className="fas fa-bell text-lg"></i>
               <span className="absolute top-0 right-0 w-2 h-2 bg-error rounded-full"></span>
@@ -55,7 +70,7 @@ export default function Dashboard() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-6">
-        <StatsCards />
+        <StatsCards dateRange={dateRange} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Chart Section */}

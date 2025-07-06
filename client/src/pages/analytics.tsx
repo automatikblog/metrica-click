@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { DateRangeSelector, type DateRange } from "@/components/date-range-selector";
+import { useCampaigns } from "@/hooks/use-campaigns";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -12,6 +15,7 @@ import {
   BarChart3,
   PieChart
 } from "lucide-react";
+import { subDays } from "date-fns";
 import type { Campaign, Click, PageView, Conversion, AdSpend } from "@shared/schema";
 
 interface CampaignAnalytics {
@@ -28,9 +32,14 @@ interface CampaignAnalytics {
 }
 
 export default function Analytics() {
-  const { data: campaigns, isLoading: campaignsLoading } = useQuery<Campaign[]>({
-    queryKey: ["/api/campaigns"],
+  // Date range state - defaults to last 30 days
+  const [dateRange, setDateRange] = useState<DateRange>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+    preset: "30d"
   });
+
+  const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ dateRange });
 
   const { data: clicks, isLoading: clicksLoading } = useQuery<Click[]>({
     queryKey: ["/api/clicks"],
@@ -103,9 +112,15 @@ export default function Analytics() {
 
   return (
     <div className="flex-1 p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
-        <p className="text-gray-600">Detailed tracking analytics and insights</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
+          <p className="text-gray-600">Detailed tracking analytics and insights</p>
+        </div>
+        <DateRangeSelector
+          value={dateRange}
+          onChange={setDateRange}
+        />
       </div>
 
       {/* Key Performance Metrics */}

@@ -567,8 +567,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // API endpoints for dashboard
   app.get("/api/campaigns", async (req, res) => {
     try {
+      const { startDate, endDate } = req.query;
       const campaigns = await storage.getAllCampaigns();
-      res.json(campaigns);
+      
+      // If date range is provided, add filtered ad spend data to each campaign
+      if (startDate && endDate) {
+        const start = new Date(startDate as string);
+        const end = new Date(endDate as string);
+        
+        const campaignsWithSpend = await Promise.all(
+          campaigns.map(async (campaign) => {
+            const adSpendData = await storage.getAdSpend(campaign.campaignId, start, end);
+            const totalSpend = adSpendData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+            
+            return {
+              ...campaign,
+              totalSpend: totalSpend.toFixed(2),
+              adSpendData
+            };
+          })
+        );
+        
+        res.json(campaignsWithSpend);
+      } else {
+        res.json(campaigns);
+      }
     } catch (error) {
       console.error("Error fetching campaigns:", error);
       res.status(500).json({ error: "Internal server error" });
@@ -597,6 +620,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/stats", async (req, res) => {
     try {
+      const { startDate, endDate } = req.query;
       const clicks = await storage.getAllClicks();
       const pageViews = await storage.getAllPageViews();
       const campaigns = await storage.getAllCampaigns();
@@ -605,11 +629,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       const totalConversions = conversions.flat().length;
 
+      // Calculate total spend for the date range
+      let totalSpend = 0;
+      if (startDate && endDate) {
+        const start = new Date(startDate as string);
+        const end = new Date(endDate as string);
+        
+        const allSpendData = await Promise.all(
+          campaigns.map(c => storage.getAdSpend(c.campaignId, start, end))
+        );
+        totalSpend = allSpendData.flat().reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+      } else {
+        // Use campaign totalSpend if no date range specified
+        totalSpend = campaigns.reduce((sum, c) => sum + parseFloat(c.totalSpend || "0"), 0);
+      }
+
       const stats = {
         totalClicks: clicks.length,
         activeCampaigns: campaigns.filter(c => c.status === 'active').length,
         pageViews: pageViews.length,
         totalConversions,
+        totalSpend: totalSpend.toFixed(2),
         conversionRate: clicks.length > 0 ? ((totalConversions / clicks.length) * 100).toFixed(1) : "0.0"
       };
 

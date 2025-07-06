@@ -1,17 +1,24 @@
 import { useQuery } from "@tanstack/react-query";
+import { useStats } from "@/hooks/use-stats";
+import type { DateRange } from "@/components/date-range-selector";
 
 interface Stats {
   totalClicks: number;
   activeCampaigns: number;
   pageViews: number;
   totalConversions: number;
+  totalSpend: string;
   conversionRate: string;
 }
 
-export function StatsCards() {
-  const { data: stats, isLoading } = useQuery<Stats>({
-    queryKey: ["/api/stats"],
-    refetchInterval: 10000, // Refresh every 10 seconds
+interface StatsCardsProps {
+  dateRange?: DateRange;
+}
+
+export function StatsCards({ dateRange }: StatsCardsProps) {
+  const { data: stats, isLoading } = useStats({ 
+    dateRange,
+    refetchInterval: 10000 
   });
 
   if (isLoading || !stats) {
@@ -64,6 +71,15 @@ export function StatsCards() {
       icon: "fas fa-eye",
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600"
+    },
+    {
+      title: "Total Spend",
+      value: `R$ ${parseFloat(stats.totalSpend).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+      change: "+5.2%",
+      changeType: "positive",
+      icon: "fas fa-dollar-sign",
+      iconBg: "bg-red-100",
+      iconColor: "text-red-600"
     },
     {
       title: "Total Conversions",

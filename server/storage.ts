@@ -21,7 +21,8 @@ import {
   type InsertConversion,
   type InsertCampaignSettings
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, gte, lte, and } from "drizzle-orm";
+import { db } from "./db";
 
 export interface IStorage {
   // Users
@@ -228,8 +229,6 @@ export class MemStorage implements IStorage {
   }
 }
 
-import { db } from "./db";
-
 export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
@@ -338,11 +337,16 @@ export class DatabaseStorage implements IStorage {
 
   // Ad Spend Operations
   async getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]> {
-    let query = db.select().from(adSpend).where(eq(adSpend.campaignId, campaignId));
+    const conditions = [eq(adSpend.campaignId, campaignId)];
     
-    // Note: Date filtering would need additional implementation
-    // For now, returning all ad spend for the campaign
-    return await query;
+    if (startDate) {
+      conditions.push(gte(adSpend.date, startDate.toISOString().split('T')[0]));
+    }
+    if (endDate) {
+      conditions.push(lte(adSpend.date, endDate.toISOString().split('T')[0]));
+    }
+    
+    return await db.select().from(adSpend).where(and(...conditions));
   }
 
   async createAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
