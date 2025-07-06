@@ -7,10 +7,9 @@ export function Sidebar() {
   const navigation = [
     { name: "Dashboard", href: "/", icon: "fas fa-tachometer-alt" },
     { name: "Campaigns", href: "/campaigns", icon: "fas fa-bullhorn" },
-    { name: "Click Tracking", href: "/analytics", icon: "fas fa-mouse-pointer" },
     { name: "Analytics", href: "/analytics", icon: "fas fa-chart-bar" },
     { name: "Integration", href: "/integration", icon: "fas fa-code" },
-    { name: "Settings", href: "/settings", icon: "fas fa-cog" },
+    { name: "Facebook Ads", href: "/facebook", icon: "fab fa-facebook" },
   ];
 
   return (

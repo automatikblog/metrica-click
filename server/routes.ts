@@ -1,11 +1,43 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClickSchema, insertPageViewSchema } from "@shared/schema";
+import { insertClickSchema, insertPageViewSchema, insertConversionSchema } from "@shared/schema";
 import express from "express";
 import path from "path";
+import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
+import { syncSingleCampaign, syncAllCampaigns, getSyncStatus } from "./sync/facebook-sync";
+import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
+import passport from "passport";
+import session from "express-session";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure session middleware
+  app.use(session({
+    secret: process.env.SESSION_SECRET || 'metricaclick-default-secret',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    }
+  }));
+
+  // Initialize passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Configure Facebook authentication
+  configureFacebookAuth();
+
+  // Passport serialization (simple for now)
+  passport.serializeUser((user, done) => {
+    done(null, user);
+  });
+
+  passport.deserializeUser((obj: any, done) => {
+    done(null, obj);
+  });
+
   // Health check endpoint for debugging connectivity
   app.get("/health", (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -36,6 +68,137 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
     
     res.status(200).send("OK");
+  });
+
+  // Facebook OAuth routes
+  app.get('/auth/facebook', (req, res) => {
+    initiateFacebookAuth(req, res);
+  });
+
+  app.get('/auth/facebook/callback', (req, res) => {
+    handleFacebookCallback(req, res);
+  });
+
+  app.get('/facebook-success', (req, res) => {
+    handleFacebookSuccess(req, res);
+  });
+
+  app.get('/facebook-error', (req, res) => {
+    handleFacebookError(req, res);
+  });
+
+  // Facebook API endpoints
+  app.get('/api/facebook/status', async (req, res) => {
+    try {
+      const userId = 'default'; // For now, use default user
+      const hasCredentials = await hasValidFacebookCredentials(userId);
+      res.json({ connected: hasCredentials });
+    } catch (error) {
+      console.error('Error checking Facebook status:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.get('/api/facebook/ad-accounts', async (req, res) => {
+    try {
+      const userId = 'default';
+      const accounts = await getFacebookAdAccounts(userId);
+      res.json(accounts);
+    } catch (error) {
+      console.error('Error fetching Facebook ad accounts:', error);
+      res.status(500).json({ error: 'Failed to fetch ad accounts' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/connect-facebook', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const { facebookCampaignId, facebookCampaignName } = req.body;
+
+      if (!facebookCampaignId) {
+        return res.status(400).json({ error: 'Facebook campaign ID is required' });
+      }
+
+      // Create or update campaign settings
+      const existingSettings = await storage.getCampaignSettings(campaignId);
+      
+      if (existingSettings) {
+        await storage.updateCampaignSettings(campaignId, {
+          fbCampaignId: facebookCampaignId,
+          fbAccountId: process.env.FACEBOOK_AD_ACCOUNT_ID || 'default'
+        });
+      } else {
+        await storage.createCampaignSettings({
+          campaignId,
+          fbCampaignId: facebookCampaignId,
+          fbAccountId: process.env.FACEBOOK_AD_ACCOUNT_ID || 'default'
+        });
+      }
+
+      res.json({ success: true, message: 'Campaign connected to Facebook' });
+    } catch (error) {
+      console.error('Error connecting campaign to Facebook:', error);
+      res.status(500).json({ error: 'Failed to connect campaign' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/sync-facebook', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const result = await syncSingleCampaign(campaignId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error syncing campaign:', error);
+      res.status(500).json({ error: 'Failed to sync campaign' });
+    }
+  });
+
+  app.post('/api/facebook/sync-all', async (req, res) => {
+    try {
+      const stats = await syncAllCampaigns();
+      res.json(stats);
+    } catch (error) {
+      console.error('Error syncing all campaigns:', error);
+      res.status(500).json({ error: 'Failed to sync campaigns' });
+    }
+  });
+
+  app.get('/api/facebook/sync-status', (req, res) => {
+    try {
+      const status = getSyncStatus();
+      res.json(status);
+    } catch (error) {
+      console.error('Error getting sync status:', error);
+      res.status(500).json({ error: 'Failed to get sync status' });
+    }
+  });
+
+  app.get('/api/campaigns/:campaignId/facebook-data', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const { days = 7 } = req.query;
+      
+      // Get Facebook client
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        return res.status(400).json({ error: 'Facebook not connected' });
+      }
+
+      // Get campaign settings
+      const settings = await storage.getCampaignSettings(campaignId);
+      if (!settings?.fbCampaignId) {
+        return res.status(400).json({ error: 'Campaign not connected to Facebook' });
+      }
+
+      // Get Facebook data
+      const dateRange = getDateRange(Number(days));
+      const metrics = await facebookClient.getCampaignMetrics(settings.fbCampaignId, dateRange);
+      
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching Facebook data:', error);
+      res.status(500).json({ error: 'Failed to fetch Facebook data' });
+    }
   });
 
   // Serve the tracking script
@@ -263,6 +426,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching campaign conversions:", error);
       res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Facebook API Test Endpoint
+  app.get("/api/facebook/test", async (req, res) => {
+    console.log("Facebook test endpoint called");
+    res.setHeader('Content-Type', 'application/json');
+    
+    try {
+      // Simple environment check first
+      const accessToken = process.env.FACEBOOK_ACCESS_TOKEN;
+      const adAccountId = process.env.FACEBOOK_AD_ACCOUNT_ID;
+      const appId = process.env.FACEBOOK_APP_ID;
+      const appSecret = process.env.FACEBOOK_APP_SECRET;
+      
+      if (!accessToken || !adAccountId || !appId || !appSecret) {
+        return res.status(400).json({ 
+          error: "Facebook credentials not configured", 
+          message: "Missing required environment variables",
+          hasAccessToken: !!accessToken,
+          hasAdAccountId: !!adAccountId,
+          hasAppId: !!appId,
+          hasAppSecret: !!appSecret
+        });
+      }
+
+      // Test a simple Facebook API call first
+      try {
+        const formattedAdAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+        const testUrl = `https://graph.facebook.com/v18.0/${formattedAdAccountId}?fields=id,name,currency&access_token=${accessToken}`;
+        
+        const response = await fetch(testUrl);
+        const data = await response.json();
+        
+        if (response.ok) {
+          res.json({
+            message: "Facebook API connected successfully",
+            adAccountId: formattedAdAccountId,
+            appId: appId,
+            connected: true,
+            accountData: data,
+            status: "Facebook integration working"
+          });
+        } else {
+          res.status(400).json({
+            error: "Facebook API authentication failed",
+            details: data,
+            formattedAdAccountId,
+            message: "Check access token permissions and ad account ID"
+          });
+        }
+      } catch (apiError) {
+        res.status(500).json({
+          error: "Facebook API request failed",
+          details: (apiError as Error).message,
+          message: "Unable to connect to Facebook Graph API"
+        });
+      }
+    } catch (error) {
+      console.error("Facebook API test error:", error);
+      res.status(500).json({ 
+        error: "Facebook API test failed", 
+        details: (error as Error).message 
+      });
+    }
+  });
+
+  // Facebook Campaigns endpoint
+  app.get("/api/facebook/campaigns", async (req, res) => {
+    try {
+      const accessToken = process.env.FACEBOOK_ACCESS_TOKEN;
+      const adAccountId = process.env.FACEBOOK_AD_ACCOUNT_ID;
+      
+      if (!accessToken || !adAccountId) {
+        return res.status(400).json({ error: "Facebook credentials not configured" });
+      }
+
+      const formattedAdAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
+      const campaignsUrl = `https://graph.facebook.com/v18.0/${formattedAdAccountId}/campaigns?fields=id,name,status,objective,spend&access_token=${accessToken}`;
+      
+      const response = await fetch(campaignsUrl);
+      const data = await response.json();
+      
+      if (response.ok) {
+        res.json({
+          campaigns: data.data || [],
+          total: data.data?.length || 0
+        });
+      } else {
+        res.status(400).json({ error: "Failed to fetch campaigns", details: data });
+      }
+    } catch (error) {
+      console.error("Facebook campaigns error:", error);
+      res.status(500).json({ error: "Failed to fetch Facebook campaigns" });
+    }
+  });
+
+  // Facebook Campaign Sync endpoint
+  app.post("/api/facebook/sync-campaign/:campaignId", async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const accessToken = process.env.FACEBOOK_ACCESS_TOKEN;
+      
+      if (!accessToken) {
+        return res.status(400).json({ error: "Facebook access token not configured" });
+      }
+
+      // Get campaign insights for the last 30 days
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+      
+      const insightsUrl = `https://graph.facebook.com/v18.0/${campaignId}/insights?fields=spend,impressions,reach,clicks&time_range={'since':'${startDate.toISOString().split('T')[0]}','until':'${endDate.toISOString().split('T')[0]}'}&access_token=${accessToken}`;
+      
+      const response = await fetch(insightsUrl);
+      const data = await response.json();
+      
+      if (response.ok && data.data && data.data.length > 0) {
+        const insight = data.data[0];
+        const spend = parseFloat(insight.spend || '0');
+        
+        // Find our internal campaign and update total cost
+        const campaigns = await storage.getAllCampaigns();
+        const internalCampaign = campaigns.find(c => c.facebookCampaignId === campaignId);
+        
+        if (internalCampaign) {
+          await storage.updateCampaign(internalCampaign.campaignId, {
+            totalCost: spend.toString(),
+            updatedAt: new Date()
+          });
+          
+          // Also create/update ad spend record
+          await storage.createAdSpend({
+            campaignId: internalCampaign.campaignId,
+            date: endDate.toISOString().split('T')[0],
+            spend: spend.toString(),
+            impressions: parseInt(insight.impressions || '0'),
+            reach: parseInt(insight.reach || '0'),
+            frequency: '0'
+          });
+        }
+        
+        res.json({
+          success: true,
+          campaignId,
+          spend,
+          impressions: insight.impressions,
+          reach: insight.reach,
+          clicks: insight.clicks,
+          dataPoints: 1
+        });
+      } else {
+        res.status(400).json({ error: "No insights found", details: data });
+      }
+    } catch (error) {
+      console.error("Facebook sync error:", error);
+      res.status(500).json({ error: "Failed to sync Facebook campaign" });
     }
   });
 

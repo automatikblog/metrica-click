@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Campaigns from "@/pages/campaigns";
 import Analytics from "@/pages/analytics";
 import Integration from "@/pages/integration";
+import FacebookSettings from "@/pages/facebook-settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/integration" component={Integration} />
+      <Route path="/facebook" component={FacebookSettings} />
       <Route component={NotFound} />
     </Switch>
   );
