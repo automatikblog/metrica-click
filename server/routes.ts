@@ -181,17 +181,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clicks = await storage.getAllClicks();
       const pageViews = await storage.getAllPageViews();
       const campaigns = await storage.getAllCampaigns();
+      const conversions = await Promise.all(
+        campaigns.map(c => storage.getConversionsByCampaignId(c.campaignId))
+      );
+      const totalConversions = conversions.flat().length;
 
       const stats = {
         totalClicks: clicks.length,
         activeCampaigns: campaigns.filter(c => c.status === 'active').length,
         pageViews: pageViews.length,
-        conversionRate: clicks.length > 0 ? ((pageViews.length / clicks.length) * 100).toFixed(1) : "0.0"
+        totalConversions,
+        conversionRate: clicks.length > 0 ? ((totalConversions / clicks.length) * 100).toFixed(1) : "0.0"
       };
 
       res.json(stats);
     } catch (error) {
       console.error("Error fetching stats:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Conversion tracking endpoints
+  app.post("/api/conversions", async (req, res) => {
+    try {
+      const { clickId, conversionType, value, currency } = req.body;
+
+      if (!clickId || !conversionType) {
+        return res.status(400).json({ error: "clickId and conversionType are required" });
+      }
+
+      // Verify click exists
+      const click = await storage.getClickByClickId(clickId);
+      if (!click) {
+        return res.status(404).json({ error: "Click not found" });
+      }
+
+      // Create conversion
+      const conversion = await storage.createConversion({
+        clickId,
+        conversionType,
+        value: value ? String(value) : null,
+        currency: currency || "USD"
+      });
+
+      // Update click with conversion data
+      await storage.updateClick(clickId, {
+        conversionValue: value ? String(value) : null,
+        convertedAt: new Date()
+      });
+
+      // Update campaign totals
+      const campaign = await storage.getCampaignByCampaignId(click.campaignId);
+      if (campaign) {
+        await storage.updateCampaign(click.campaignId, {
+          totalRevenue: String(parseFloat(campaign.totalRevenue || "0") + (value || 0)),
+          conversionCount: (campaign.conversionCount || 0) + 1
+        });
+      }
+
+      res.json(conversion);
+    } catch (error) {
+      console.error("Error creating conversion:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/conversions/click/:clickId", async (req, res) => {
+    try {
+      const conversions = await storage.getConversionsByClickId(req.params.clickId);
+      res.json(conversions);
+    } catch (error) {
+      console.error("Error fetching conversions:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/campaigns/:campaignId/conversions", async (req, res) => {
+    try {
+      const conversions = await storage.getConversionsByCampaignId(req.params.campaignId);
+      res.json(conversions);
+    } catch (error) {
+      console.error("Error fetching campaign conversions:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

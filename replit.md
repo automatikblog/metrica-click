@@ -100,6 +100,10 @@ MétricaClick is a comprehensive paid traffic tracking system similar to RedTrac
 - July 06, 2025. Fixed domain configuration for external website tracking (automatikblog.com)
 - July 06, 2025. Added health endpoint and remote error logging for production debugging
 - July 06, 2025. Created real campaign for automatikblog.com deployment
+- July 06, 2025. Major expansion: Added conversion tracking, cost tracking, and performance metrics (ROAS, CPA, ROI)
+- July 06, 2025. Created comprehensive analytics dashboard showing campaign performance metrics
+- July 06, 2025. Added conversion tracking API endpoints and updated mc.js script with trackConversion() function
+- July 06, 2025. Created test pages for click generation and conversion testing
 
 ## User Preferences
 

@@ -4,6 +4,7 @@ interface Stats {
   totalClicks: number;
   activeCampaigns: number;
   pageViews: number;
+  totalConversions: number;
   conversionRate: string;
 }
 
@@ -15,7 +16,7 @@ export function StatsCards() {
 
   if (isLoading || !stats) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 animate-pulse">
             <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -63,6 +64,15 @@ export function StatsCards() {
       icon: "fas fa-eye",
       iconBg: "bg-purple-100",
       iconColor: "text-purple-600"
+    },
+    {
+      title: "Total Conversions",
+      value: stats.totalConversions.toLocaleString(),
+      change: `${stats.conversionRate}% rate`,
+      changeType: "neutral",
+      icon: "fas fa-shopping-cart",
+      iconBg: "bg-indigo-100",
+      iconColor: "text-indigo-600"
     }
   ];
 

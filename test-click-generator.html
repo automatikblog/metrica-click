@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Clicks - MétricaClick</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .campaign-list {
+            margin: 20px 0;
+        }
+        .campaign {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .campaign h3 {
+            margin: 0 0 10px 0;
+            color: #2c3e50;
+        }
+        .link-group {
+            margin: 15px 0;
+        }
+        .link-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #e3f2fd;
+            border-radius: 5px;
+        }
+        .link-item a {
+            color: #1976d2;
+            text-decoration: none;
+            margin-right: 10px;
+            flex: 1;
+        }
+        .link-item a:hover {
+            text-decoration: underline;
+        }
+        .button {
+            background: #3498db;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .info {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gerador de Clicks de Teste - MétricaClick</h1>
+        
+        <div class="info">
+            <strong>Como usar:</strong><br>
+            1. Clique em um dos links abaixo para gerar um click rastreado<br>
+            2. Cada link simula uma origem diferente (Facebook, Google, etc.)<br>
+            3. Depois de clicar, você pode testar conversões na página de destino
+        </div>
+
+        <div class="campaign-list">
+            <div class="campaign">
+                <h3>Campanha: Automatik Blog (cmpid_automatik)</h3>
+                <p>ID: cmpid_automatik | Status: Ativa</p>
+                
+                <div class="link-group">
+                    <h4>Links de Teste:</h4>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=cmpid_automatik&tsource=facebook&_fbp=fb.1.1234567890.987654321" target="_blank">
+                            📘 Simular tráfego do Facebook
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=cmpid_automatik&tsource=google&gclid=CjwKCAiA1234567890" target="_blank">
+                            🔍 Simular tráfego do Google Ads
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=cmpid_automatik&tsource=instagram&utm_source=instagram&utm_medium=story" target="_blank">
+                            📷 Simular tráfego do Instagram
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=cmpid_automatik&tsource=tiktok&tt_clickid=7394506703912665090" target="_blank">
+                            🎵 Simular tráfego do TikTok
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="campaign">
+                <h3>Campanha: E-commerce Test (test-ecommerce)</h3>
+                <p>ID: test-ecommerce | Status: Ativa</p>
+                
+                <div class="link-group">
+                    <h4>Links de Teste:</h4>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=test-ecommerce&tsource=facebook&_fbp=fb.1.9876543210.123456789" target="_blank">
+                            📘 Facebook - Produto A
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=test-ecommerce&tsource=google&gclid=CjwKCAiB9876543210" target="_blank">
+                            🔍 Google Shopping
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="campaign">
+                <h3>Campanha: Lead Generation (lead-gen-2025)</h3>
+                <p>ID: lead-gen-2025 | Status: Ativa</p>
+                
+                <div class="link-group">
+                    <h4>Links de Teste:</h4>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=lead-gen-2025&tsource=linkedin&li_fat_id=12345678-90ab-cdef" target="_blank">
+                            💼 LinkedIn Ads
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                    
+                    <div class="link-item">
+                        <a href="test-conversion.html?cmpid=lead-gen-2025&tsource=email&utm_source=newsletter&utm_campaign=jan2025" target="_blank">
+                            📧 Email Marketing
+                        </a>
+                        <button class="button" onclick="copyLink(this)">Copiar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="success" id="success-message" style="display: none;">
+            ✅ Link copiado para a área de transferência!
+        </div>
+
+        <div class="info">
+            <strong>Próximos passos:</strong><br>
+            1. Clique em um dos links acima<br>
+            2. Na página de conversão, simule compras ou cadastros<br>
+            3. Volte ao dashboard para ver as métricas atualizadas<br>
+            4. Acesse Analytics para ver ROAS, CPA e ROI
+        </div>
+    </div>
+
+    <script>
+        function copyLink(button) {
+            const link = button.parentElement.querySelector('a');
+            const url = new URL(link.href, window.location.href);
+            
+            navigator.clipboard.writeText(url.toString()).then(() => {
+                const successMsg = document.getElementById('success-message');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+            });
+        }
+
+        // Generate random click IDs for variety
+        document.querySelectorAll('.link-item a').forEach(link => {
+            link.addEventListener('click', () => {
+                // Add a random mcid parameter for testing
+                const url = new URL(link.href, window.location.href);
+                const randomId = 'mc_' + Math.random().toString(36).substr(2, 9);
+                url.searchParams.set('mcid', randomId);
+                link.href = url.toString();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -289,6 +289,47 @@
     return 'http://localhost:5000';
   }
 
+  // Add conversion tracking function
+  function trackConversion(conversionType, value, currency) {
+    const clickId = getCookie('mcclickid-store') || sessionStorage.getItem('mcclickid');
+    
+    if (!clickId) {
+      console.log('MétricaClick: No click ID found for conversion tracking');
+      return;
+    }
+    
+    currency = currency || 'USD';
+    console.log('MétricaClick: Tracking conversion:', conversionType, 'Value:', value, 'Currency:', currency);
+    
+    fetch(`${getBaseUrl()}/api/conversions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        clickId: clickId,
+        conversionType: conversionType,
+        value: value,
+        currency: currency
+      })
+    })
+    .then(function(response) {
+      if (response.ok) {
+        console.log('MétricaClick: Conversion tracked successfully');
+      } else {
+        console.error('MétricaClick: Failed to track conversion');
+      }
+    })
+    .catch(function(error) {
+      console.error('MétricaClick: Error tracking conversion:', error);
+    });
+  }
+  
+  // Expose global API
+  window.MetricaClick = {
+    trackConversion: trackConversion
+  };
+
   // Initialize tracking when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', track);

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Conversão - MétricaClick</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .button.success {
+            background: #27ae60;
+        }
+        .button.success:hover {
+            background: #229954;
+        }
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        .info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .product {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .product h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .price {
+            font-size: 24px;
+            color: #27ae60;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Teste de Conversão - MétricaClick</h1>
+        
+        <div class="info">
+            <strong>Instruções:</strong><br>
+            1. Primeiro, visite esta página através de um link rastreado com parâmetros<br>
+            2. Depois, simule conversões clicando nos botões abaixo
+        </div>
+
+        <h2>Produtos de Exemplo</h2>
+        
+        <div class="product">
+            <h3>Produto A - Curso Online</h3>
+            <div class="price">R$ 97,00</div>
+            <button class="button success" onclick="trackPurchase('curso-online', 97, 'BRL')">
+                Simular Compra
+            </button>
+        </div>
+
+        <div class="product">
+            <h3>Produto B - E-book</h3>
+            <div class="price">R$ 27,00</div>
+            <button class="button success" onclick="trackPurchase('ebook', 27, 'BRL')">
+                Simular Compra
+            </button>
+        </div>
+
+        <div class="product">
+            <h3>Produto C - Consultoria</h3>
+            <div class="price">R$ 497,00</div>
+            <button class="button success" onclick="trackPurchase('consultoria', 497, 'BRL')">
+                Simular Compra
+            </button>
+        </div>
+
+        <h2>Outras Conversões</h2>
+        
+        <button class="button" onclick="trackLead()">
+            Simular Lead (Cadastro)
+        </button>
+
+        <button class="button" onclick="trackSignup()">
+            Simular Sign-up
+        </button>
+
+        <button class="button" onclick="trackCustom()">
+            Conversão Personalizada
+        </button>
+
+        <h2>Debug Info</h2>
+        <div id="output" class="output">Aguardando ações...</div>
+    </div>
+
+    <!-- MétricaClick Script -->
+    <script id="mc-script" 
+            src="http://localhost:5000/mc.js"
+            data-campaign="test-conversion"
+            data-mode="cookie"
+            data-attribution="lastpaid">
+    </script>
+
+    <script>
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            console.log(`[Teste] ${message}`);
+        }
+
+        function trackPurchase(product, value, currency) {
+            log(`Rastreando compra: ${product} - ${currency} ${value}`);
+            
+            if (window.MetricaClick && window.MetricaClick.trackConversion) {
+                window.MetricaClick.trackConversion('purchase', value, currency);
+                log('✓ Conversão de compra enviada');
+            } else {
+                log('✗ MetricaClick não está disponível');
+            }
+        }
+
+        function trackLead() {
+            log('Rastreando lead (cadastro)');
+            
+            if (window.MetricaClick && window.MetricaClick.trackConversion) {
+                window.MetricaClick.trackConversion('lead', null, null);
+                log('✓ Conversão de lead enviada');
+            } else {
+                log('✗ MetricaClick não está disponível');
+            }
+        }
+
+        function trackSignup() {
+            log('Rastreando sign-up');
+            
+            if (window.MetricaClick && window.MetricaClick.trackConversion) {
+                window.MetricaClick.trackConversion('signup', null, null);
+                log('✓ Conversão de sign-up enviada');
+            } else {
+                log('✗ MetricaClick não está disponível');
+            }
+        }
+
+        function trackCustom() {
+            const type = prompt('Digite o tipo de conversão:', 'custom');
+            const value = prompt('Digite o valor (opcional):', '');
+            
+            if (type) {
+                log(`Rastreando conversão personalizada: ${type}${value ? ' - Valor: ' + value : ''}`);
+                
+                if (window.MetricaClick && window.MetricaClick.trackConversion) {
+                    window.MetricaClick.trackConversion(
+                        type, 
+                        value ? parseFloat(value) : null, 
+                        'BRL'
+                    );
+                    log('✓ Conversão personalizada enviada');
+                } else {
+                    log('✗ MetricaClick não está disponível');
+                }
+            }
+        }
+
+        // Check if MetricaClick is loaded
+        window.addEventListener('load', function() {
+            if (window.MetricaClick) {
+                log('✓ MetricaClick carregado com sucesso');
+                log('Funções disponíveis: ' + Object.keys(window.MetricaClick).join(', '));
+            } else {
+                log('✗ MetricaClick não foi carregado');
+            }
+
+            // Check for click ID
+            const clickId = localStorage.getItem('mcclickid-store') || sessionStorage.getItem('mcclickid');
+            if (clickId) {
+                log('Click ID encontrado: ' + clickId);
+            } else {
+                log('⚠️ Nenhum click ID encontrado - visite esta página através de um link rastreado');
+            }
+        });
+    </script>
+</body>
+</html>

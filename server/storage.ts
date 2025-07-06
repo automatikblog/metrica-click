@@ -2,15 +2,24 @@ import {
   campaigns, 
   clicks, 
   pageViews, 
-  users, 
+  users,
+  adSpend,
+  conversions,
+  campaignSettings,
   type Campaign, 
   type Click, 
   type PageView, 
-  type User, 
+  type User,
+  type AdSpend,
+  type Conversion,
+  type CampaignSettings,
   type InsertCampaign, 
   type InsertClick, 
   type InsertPageView, 
-  type InsertUser 
+  type InsertUser,
+  type InsertAdSpend,
+  type InsertConversion,
+  type InsertCampaignSettings
 } from "@shared/schema";
 
 export interface IStorage {
@@ -24,6 +33,7 @@ export interface IStorage {
   getCampaignByCampaignId(campaignId: string): Promise<Campaign | undefined>;
   createCampaign(campaign: InsertCampaign): Promise<Campaign>;
   getAllCampaigns(): Promise<Campaign[]>;
+  updateCampaign(campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined>;
   
   // Clicks
   getClick(id: number): Promise<Click | undefined>;
@@ -31,12 +41,29 @@ export interface IStorage {
   createClick(click: InsertClick): Promise<Click>;
   getClicksByCampaignId(campaignId: string): Promise<Click[]>;
   getAllClicks(): Promise<Click[]>;
+  updateClick(clickId: string, updates: Partial<Click>): Promise<Click | undefined>;
   
   // Page Views
   getPageView(id: number): Promise<PageView | undefined>;
   createPageView(pageView: InsertPageView): Promise<PageView>;
   getPageViewsByClickId(clickId: string): Promise<PageView[]>;
   getAllPageViews(): Promise<PageView[]>;
+  
+  // Ad Spend Operations
+  getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]>;
+  createAdSpend(adSpend: InsertAdSpend): Promise<AdSpend>;
+  updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined>;
+  
+  // Conversion Operations
+  getConversion(id: number): Promise<Conversion | undefined>;
+  getConversionsByClickId(clickId: string): Promise<Conversion[]>;
+  createConversion(conversion: InsertConversion): Promise<Conversion>;
+  getConversionsByCampaignId(campaignId: string): Promise<Conversion[]>;
+  
+  // Campaign Settings
+  getCampaignSettings(campaignId: string): Promise<CampaignSettings | undefined>;
+  createCampaignSettings(settings: InsertCampaignSettings): Promise<CampaignSettings>;
+  updateCampaignSettings(campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -111,10 +138,14 @@ export class MemStorage implements IStorage {
   async createCampaign(insertCampaign: InsertCampaign): Promise<Campaign> {
     const id = this.currentCampaignId++;
     const campaign: Campaign = { 
-      ...insertCampaign, 
       id, 
-      createdAt: new Date(),
-      status: insertCampaign.status || "active"
+      name: insertCampaign.name,
+      campaignId: insertCampaign.campaignId,
+      status: insertCampaign.status || "active",
+      totalSpend: "0",
+      totalRevenue: "0",
+      conversionCount: 0,
+      createdAt: new Date()
     };
     this.campaigns.set(id, campaign);
     return campaign;
@@ -147,7 +178,9 @@ export class MemStorage implements IStorage {
       fbp: insertClick.fbp || null,
       fbc: insertClick.fbc || null,
       userAgent: insertClick.userAgent || null,
-      ipAddress: insertClick.ipAddress || null
+      ipAddress: insertClick.ipAddress || null,
+      conversionValue: null,
+      convertedAt: null
     };
     this.clicks.set(id, click);
     return click;
@@ -237,6 +270,15 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(campaigns);
   }
 
+  async updateCampaign(campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .update(campaigns)
+      .set(updates)
+      .where(eq(campaigns.campaignId, campaignId))
+      .returning();
+    return campaign || undefined;
+  }
+
   async getClick(id: number): Promise<Click | undefined> {
     const [click] = await db.select().from(clicks).where(eq(clicks.id, id));
     return click || undefined;
@@ -263,6 +305,15 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(clicks);
   }
 
+  async updateClick(clickId: string, updates: Partial<Click>): Promise<Click | undefined> {
+    const [click] = await db
+      .update(clicks)
+      .set(updates)
+      .where(eq(clicks.clickId, clickId))
+      .returning();
+    return click || undefined;
+  }
+
   async getPageView(id: number): Promise<PageView | undefined> {
     const [pageView] = await db.select().from(pageViews).where(eq(pageViews.id, id));
     return pageView || undefined;
@@ -282,6 +333,90 @@ export class DatabaseStorage implements IStorage {
 
   async getAllPageViews(): Promise<PageView[]> {
     return await db.select().from(pageViews);
+  }
+
+  // Ad Spend Operations
+  async getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]> {
+    let query = db.select().from(adSpend).where(eq(adSpend.campaignId, campaignId));
+    
+    // Note: Date filtering would need additional implementation
+    // For now, returning all ad spend for the campaign
+    return await query;
+  }
+
+  async createAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
+    const [spend] = await db
+      .insert(adSpend)
+      .values(insertAdSpend)
+      .returning();
+    return spend;
+  }
+
+  async updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined> {
+    const [spend] = await db
+      .update(adSpend)
+      .set(updates)
+      .where(eq(adSpend.id, id))
+      .returning();
+    return spend || undefined;
+  }
+
+  // Conversion Operations
+  async getConversion(id: number): Promise<Conversion | undefined> {
+    const [conversion] = await db.select().from(conversions).where(eq(conversions.id, id));
+    return conversion || undefined;
+  }
+
+  async getConversionsByClickId(clickId: string): Promise<Conversion[]> {
+    return await db.select().from(conversions).where(eq(conversions.clickId, clickId));
+  }
+
+  async createConversion(insertConversion: InsertConversion): Promise<Conversion> {
+    const [conversion] = await db
+      .insert(conversions)
+      .values(insertConversion)
+      .returning();
+    return conversion;
+  }
+
+  async getConversionsByCampaignId(campaignId: string): Promise<Conversion[]> {
+    const clicksForCampaign = await db.select().from(clicks).where(eq(clicks.campaignId, campaignId));
+    const clickIds = clicksForCampaign.map(c => c.clickId);
+    
+    if (clickIds.length === 0) return [];
+    
+    // Get all conversions for these clicks
+    const campaignConversions = await db
+      .select()
+      .from(conversions);
+    
+    return campaignConversions.filter(conv => clickIds.includes(conv.clickId));
+  }
+
+  // Campaign Settings
+  async getCampaignSettings(campaignId: string): Promise<CampaignSettings | undefined> {
+    const [settings] = await db
+      .select()
+      .from(campaignSettings)
+      .where(eq(campaignSettings.campaignId, campaignId));
+    return settings || undefined;
+  }
+
+  async createCampaignSettings(insertSettings: InsertCampaignSettings): Promise<CampaignSettings> {
+    const [settings] = await db
+      .insert(campaignSettings)
+      .values(insertSettings)
+      .returning();
+    return settings;
+  }
+
+  async updateCampaignSettings(campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined> {
+    const [settings] = await db
+      .update(campaignSettings)
+      .set(updates)
+      .where(eq(campaignSettings.campaignId, campaignId))
+      .returning();
+    return settings || undefined;
   }
 }
 

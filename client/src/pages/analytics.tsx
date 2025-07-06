@@ -1,8 +1,37 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { Click, PageView } from "@shared/schema";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  DollarSign, 
+  MousePointerClick, 
+  ShoppingCart,
+  Activity,
+  BarChart3,
+  PieChart
+} from "lucide-react";
+import type { Campaign, Click, PageView, Conversion, AdSpend } from "@shared/schema";
+
+interface CampaignAnalytics {
+  campaign: Campaign;
+  clicks: Click[];
+  conversions: Conversion[];
+  adSpend: AdSpend[];
+  revenue: number;
+  cost: number;
+  roas: number;
+  cpa: number;
+  roi: number;
+  conversionRate: number;
+}
 
 export default function Analytics() {
+  const { data: campaigns, isLoading: campaignsLoading } = useQuery<Campaign[]>({
+    queryKey: ["/api/campaigns"],
+  });
+
   const { data: clicks, isLoading: clicksLoading } = useQuery<Click[]>({
     queryKey: ["/api/clicks"],
   });
@@ -11,7 +40,43 @@ export default function Analytics() {
     queryKey: ["/api/page-views"],
   });
 
-  const isLoading = clicksLoading || pageViewsLoading;
+  const isLoading = campaignsLoading || clicksLoading || pageViewsLoading;
+
+  // Calculate campaign analytics
+  const campaignAnalytics: CampaignAnalytics[] = campaigns?.map(campaign => {
+    const campaignClicks = clicks?.filter(c => c.campaignId === campaign.campaignId) || [];
+    const conversions = campaignClicks.filter(c => c.convertedAt !== null);
+    const revenue = conversions.reduce((sum, c) => sum + parseFloat(c.conversionValue || "0"), 0);
+    const cost = parseFloat(campaign.totalSpend || "0");
+    const roas = cost > 0 ? revenue / cost : 0;
+    const cpa = conversions.length > 0 ? cost / conversions.length : 0;
+    const roi = cost > 0 ? ((revenue - cost) / cost) * 100 : 0;
+    const conversionRate = campaignClicks.length > 0 ? (conversions.length / campaignClicks.length) * 100 : 0;
+
+    return {
+      campaign,
+      clicks: campaignClicks,
+      conversions: [],
+      adSpend: [],
+      revenue,
+      cost,
+      roas,
+      cpa,
+      roi,
+      conversionRate
+    };
+  }) || [];
+
+  // Calculate totals
+  const totals = {
+    revenue: campaignAnalytics.reduce((sum, ca) => sum + ca.revenue, 0),
+    cost: campaignAnalytics.reduce((sum, ca) => sum + ca.cost, 0),
+    clicks: clicks?.length || 0,
+    conversions: campaignAnalytics.reduce((sum, ca) => sum + ca.conversions.length, 0),
+    avgRoas: campaignAnalytics.length > 0 
+      ? campaignAnalytics.reduce((sum, ca) => sum + ca.roas, 0) / campaignAnalytics.length 
+      : 0,
+  };
 
   if (isLoading) {
     return (
@@ -20,8 +85,8 @@ export default function Analytics() {
           <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
           <p className="text-gray-600">Detailed tracking analytics and insights</p>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="animate-pulse">
               <CardHeader>
                 <div className="h-6 bg-gray-200 rounded"></div>
@@ -43,15 +108,147 @@ export default function Analytics() {
         <p className="text-gray-600">Detailed tracking analytics and insights</p>
       </div>
 
+      {/* Key Performance Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Revenue
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totals.revenue.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              From all campaigns
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Ad Spend
+            </CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${totals.cost.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Across all platforms
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Average ROAS
+            </CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totals.avgRoas.toFixed(2)}x</div>
+            <p className="text-xs text-muted-foreground">
+              Return on ad spend
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              Total Clicks
+            </CardTitle>
+            <MousePointerClick className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totals.clicks}</div>
+            <p className="text-xs text-muted-foreground">
+              {pageViews?.length || 0} page views
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Campaign Performance Table */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Campaign Performance</CardTitle>
+          <CardDescription>
+            Key metrics for each active campaign
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left p-2">Campaign</th>
+                  <th className="text-right p-2">Spend</th>
+                  <th className="text-right p-2">Revenue</th>
+                  <th className="text-right p-2">ROAS</th>
+                  <th className="text-right p-2">CPA</th>
+                  <th className="text-right p-2">ROI</th>
+                  <th className="text-right p-2">Conv. Rate</th>
+                  <th className="text-center p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {campaignAnalytics.map((ca) => (
+                  <tr key={ca.campaign.id} className="border-b hover:bg-gray-50">
+                    <td className="p-2">
+                      <div>
+                        <div className="font-medium">{ca.campaign.name}</div>
+                        <div className="text-sm text-gray-500">{ca.clicks.length} clicks</div>
+                      </div>
+                    </td>
+                    <td className="text-right p-2">${ca.cost.toFixed(2)}</td>
+                    <td className="text-right p-2">${ca.revenue.toFixed(2)}</td>
+                    <td className="text-right p-2">
+                      <span className={ca.roas >= 1 ? "text-green-600" : "text-red-600"}>
+                        {ca.roas.toFixed(2)}x
+                      </span>
+                    </td>
+                    <td className="text-right p-2">${ca.cpa.toFixed(2)}</td>
+                    <td className="text-right p-2">
+                      <div className="flex items-center justify-end gap-1">
+                        {ca.roi > 0 ? (
+                          <TrendingUp className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-red-600" />
+                        )}
+                        <span className={ca.roi >= 0 ? "text-green-600" : "text-red-600"}>
+                          {ca.roi.toFixed(1)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="text-right p-2">{ca.conversionRate.toFixed(1)}%</td>
+                    <td className="text-center p-2">
+                      <Badge variant={ca.campaign.status === 'active' ? 'default' : 'secondary'}>
+                        {ca.campaign.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Click Distribution */}
         <Card>
           <CardHeader>
             <CardTitle>Click Distribution by Source</CardTitle>
+            <CardDescription>
+              Traffic sources breakdown
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {clicks && clicks.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(
                   clicks.reduce((acc, click) => {
                     const source = click.source || 'Direct';
@@ -59,105 +256,58 @@ export default function Analytics() {
                     return acc;
                   }, {} as Record<string, number>)
                 ).map(([source, count]) => (
-                  <div key={source} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{source}</span>
-                    <span className="text-sm text-gray-600">{count} clicks</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-chart-pie text-4xl mb-2"></i>
-                <p>No click data available</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Campaign Performance */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Campaign Performance</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {clicks && clicks.length > 0 ? (
-              <div className="space-y-3">
-                {Object.entries(
-                  clicks.reduce((acc, click) => {
-                    const campaign = click.campaignId;
-                    acc[campaign] = (acc[campaign] || 0) + 1;
-                    return acc;
-                  }, {} as Record<string, number>)
-                ).map(([campaign, count]) => (
-                  <div key={campaign} className="flex items-center justify-between">
-                    <span className="text-sm font-medium truncate">{campaign}</span>
-                    <span className="text-sm text-gray-600">{count} clicks</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-chart-bar text-4xl mb-2"></i>
-                <p>No campaign data available</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Page Views Timeline */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Page Views</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pageViews && pageViews.length > 0 ? (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {pageViews.slice(-10).reverse().map((view) => (
-                  <div key={view.id} className="flex items-center justify-between text-sm">
-                    <span className="font-mono text-xs truncate">{view.clickId}</span>
-                    <span className="text-gray-600">
-                      {new Date(view.createdAt).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-eye text-4xl mb-2"></i>
-                <p>No page view data available</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Click Details */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Clicks</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {clicks && clicks.length > 0 ? (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {clicks.slice(-10).reverse().map((click) => (
-                  <div key={click.id} className="p-2 border rounded text-sm">
-                    <div className="flex justify-between items-start">
-                      <span className="font-mono text-xs">{click.clickId}</span>
-                      <span className="text-gray-600 text-xs">
-                        {new Date(click.createdAt).toLocaleTimeString()}
-                      </span>
+                  <div key={source} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{source}</span>
+                      <span className="text-muted-foreground">{count} clicks</span>
                     </div>
-                    <div className="text-gray-600 text-xs mt-1">
-                      {click.source && <span>Source: {click.source}</span>}
-                      {click.referrer && <span className="ml-2">Referrer: {click.referrer}</span>}
-                    </div>
+                    <Progress 
+                      value={(count / clicks.length) * 100} 
+                      className="h-2"
+                    />
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <i className="fas fa-mouse-pointer text-4xl mb-2"></i>
-                <p>No click data available</p>
+              <p className="text-center text-muted-foreground py-8">
+                No click data available yet
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Top Performing Campaigns */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Performing Campaigns</CardTitle>
+            <CardDescription>
+              Campaigns ranked by ROAS
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {campaignAnalytics.length > 0 ? (
+              <div className="space-y-4">
+                {campaignAnalytics
+                  .sort((a, b) => b.roas - a.roas)
+                  .slice(0, 5)
+                  .map((ca) => (
+                    <div key={ca.campaign.id} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium">{ca.campaign.name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          ROAS: {ca.roas.toFixed(2)}x • ROI: {ca.roi.toFixed(1)}%
+                        </div>
+                      </div>
+                      <Badge variant={ca.roas >= 1 ? "default" : "destructive"}>
+                        {ca.roas >= 1 ? "Profitable" : "Unprofitable"}
+                      </Badge>
+                    </div>
+                  ))}
               </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No campaign data available yet
+              </p>
             )}
           </CardContent>
         </Card>
