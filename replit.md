@@ -110,6 +110,7 @@ MétricaClick is a comprehensive paid traffic tracking system similar to RedTrac
 - July 06, 2025. Resolved R$40+ discrepancy - System now shows R$2,555 (total account spend) vs R$241 (daily spend matching Facebook Manager)
 - July 06, 2025. Added multiple sync endpoints: /sync-complete, /smart-sync, /sync-account-level for comprehensive data accuracy
 - July 06, 2025. COMPREHENSIVE ANALYSIS: Created Instructions-meta-data.md documenting critical date filtering problems across Dashboard and Analytics screens
+- July 06, 2025. CONVERSION WEBHOOK ANALYSIS: Created Instructions-conversion.md with deep technical analysis of existing conversion system and detailed implementation plan for external webhook endpoint /conversion supporting SRC/SCK fields from Hotmart and custom checkouts
 
 ## User Preferences
 
