@@ -1,0 +1,139 @@
+🎯 Objetivo
+Crie um sistema de rastreamento de tráfego pago chamado MétricaClick, semelhante ao RedTrack. Ele deve rastrear cliques de campanhas, armazenar informações no navegador do usuário (cookies e sessionStorage), registrar visualizações de páginas e permitir atribuição futura de vendas por click ID.
+
+🔧 Funcionalidades principais do frontend (JavaScript)
+Implemente um script JavaScript que será incluído em páginas externas como este:
+
+html
+Copiar
+Editar
+<script src="https://metrica-click.replit.app/mc.js?attribution=lastpaid&cookiedomain=automatikblog.com&cookieduration=90&defaultcampaignid=683f45642498fc6fe758357f&regviewonce=false"></script>
+Esse script deve:
+
+Ler parâmetros da URL, como:
+
+cmpid → ID da campanha
+
+mcid → clickid (opcional)
+
+tsource → fonte do tráfego (opcional)
+
+_fbp e _fbc dos cookies (Meta Ads)
+
+Gerenciar cookies e sessionStorage:
+
+mcclickid-store → guarda o click ID geral (por até 90 dias)
+
+mccid-paid → guarda o click ID se for pago
+
+sessionStorage.mcclickid → click ID da sessão
+
+Aplicar modelo de atribuição com base em attribution:
+
+"lastpaid" (padrão)
+
+"firstclick"
+
+"lastclick"
+
+"firstpaid"
+
+Solicitar o click ID do backend (se não tiver mcid na URL):
+
+Via GET https://metrica-click.replit.app/track/{campaignID}?format=json&referrer=...&...
+
+Deve receber: { "clickid": "mc_1234567890" }
+
+Registrar a visualização da página:
+
+Via GET https://metrica-click.replit.app/view?clickid={clickid}&referrer={ref}
+
+🧠 O que o script deve fazer no fluxo:
+Captura os parâmetros da URL e cookies do navegador.
+
+Decide qual click ID usar, de acordo com o modelo de atribuição.
+
+Armazena esse click ID em cookie e sessionStorage.
+
+Chama o endpoint /view para registrar uma visualização.
+
+Se não houver mcid na URL, consulta o endpoint /track/{campaignID} para gerar um novo click ID.
+
+📡 Backend – Endpoints Requeridos
+Você deve criar dois endpoints no backend do Replit:
+
+GET /track/:campaignID
+Objetivo:
+Gerar ou retornar um click ID para uma campanha.
+
+Parâmetros:
+:campaignID → o ID da campanha (ex: abc123)
+
+Querystring:
+
+referrer (opcional)
+
+_fbp, _fbc (opcional, do Meta Ads)
+
+format=json (sempre)
+
+Resposta esperada (formato JSON):
+json
+Copiar
+Editar
+{
+  "clickid": "mc_abc123_1699202392837"
+}
+O que o servidor deve fazer:
+Gerar um ID único (pode ser mc_{campaignID}_{timestamp})
+
+Salvar esse dado em memória (para o MVP pode ser um array ou objeto local)
+
+Retornar o JSON com o clickid
+
+GET /view
+Objetivo:
+Registrar que um usuário visualizou a página com determinado clickid.
+
+Parâmetros:
+clickid (obrigatório)
+
+referrer (opcional)
+
+O que o servidor deve fazer:
+Registrar um log com clickid, referrer, timestamp
+
+Salvar (em memória ou em arquivo no Replit)
+
+Pode simplesmente retornar 200 OK
+
+🧪 Exemplos de uso
+1. Acesso com clique pago:
+ruby
+Copiar
+Editar
+https://automatikblog.com/?cmpid=abc123&_fbc=123&_fbp=456
+Fluxo:
+
+script detecta cmpid
+
+consulta /track/abc123
+
+recebe clickid
+
+salva em mcclickid-store, sessionStorage, e talvez mccid-paid
+
+registra visualização em /view
+
+2. Acesso com clickid já na URL:
+ruby
+Copiar
+Editar
+https://automatikblog.com/?mcid=mc_abc123_1699...
+Fluxo:
+
+script lê mcid da URL
+
+salva direto em cookie/session
+
+registra visualização
