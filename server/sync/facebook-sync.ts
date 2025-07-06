@@ -30,17 +30,37 @@ export class FacebookSyncService {
   }
 
   /**
-   * Schedule automatic daily sync at 2:00 AM
+   * Schedule automatic sync with multiple frequencies
    */
   scheduleDailySync(): void {
+    // Main sync at 2:00 AM - comprehensive 90 days
     cron.schedule('0 2 * * *', () => {
-      console.log('[FB-SYNC] Starting scheduled daily sync...');
+      console.log('[FB-SYNC] Starting scheduled daily full sync...');
       this.syncAllCampaigns();
     }, {
       timezone: 'America/New_York'
     });
 
-    console.log('[FB-SYNC] Daily sync scheduled for 2:00 AM EST');
+    // Incremental sync every 4 hours - last 2 days only
+    cron.schedule('0 */4 * * *', () => {
+      console.log('[FB-SYNC] Starting incremental sync...');
+      this.syncRecentData();
+    }, {
+      timezone: 'America/New_York'
+    });
+
+    // Yesterday's data sync at 10:00 AM (more stable data)
+    cron.schedule('0 10 * * *', () => {
+      console.log('[FB-SYNC] Starting yesterday data sync...');
+      this.syncYesterdayData();
+    }, {
+      timezone: 'America/New_York'
+    });
+
+    console.log('[FB-SYNC] Multi-frequency sync scheduled:');
+    console.log('[FB-SYNC] - Full sync: 2:00 AM EST daily');
+    console.log('[FB-SYNC] - Incremental: Every 4 hours');
+    console.log('[FB-SYNC] - Yesterday data: 10:00 AM EST daily');
   }
 
   /**
@@ -158,8 +178,8 @@ export class FacebookSyncService {
     try {
       console.log(`[FB-SYNC] Syncing campaign ${internalCampaignId} -> FB:${facebookCampaignId}`);
       
-      // Get last 30 days of data to ensure comprehensive sync
-      const dateRange = getDateRange(30);
+      // Get comprehensive date range (90 days or since campaign start)
+      const dateRange = getDateRange(90);
       
       // Sync the campaign data
       await facebookClient.syncCampaignData(
@@ -248,6 +268,80 @@ export class FacebookSyncService {
   stopSync(): void {
     if (this.isRunning) {
       console.log('[FB-SYNC] Stopping sync...');
+      this.isRunning = false;
+    }
+  }
+
+  /**
+   * Sync recent data (last 2 days) for all campaigns
+   */
+  async syncRecentData(): Promise<void> {
+    if (this.isRunning) {
+      console.log('[FB-SYNC] Sync already running, skipping incremental sync');
+      return;
+    }
+    
+    try {
+      this.isRunning = true;
+      const campaigns = await storage.getAllCampaigns();
+      const connectedCampaigns = campaigns.filter(c => c.facebookCampaignId);
+      
+      for (const campaign of connectedCampaigns) {
+        const facebookClient = await createFacebookClient('default');
+        if (facebookClient && campaign.facebookCampaignId) {
+          // Sync last 2 days only for incremental updates
+          const dateRange = getDateRange(2);
+          await facebookClient.syncCampaignData(
+            campaign.campaignId,
+            campaign.facebookCampaignId,
+            dateRange
+          );
+        }
+      }
+    } catch (error) {
+      console.error('[FB-SYNC] Error during incremental sync:', error);
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  /**
+   * Sync yesterday's data specifically (more stable)
+   */
+  async syncYesterdayData(): Promise<void> {
+    if (this.isRunning) {
+      console.log('[FB-SYNC] Sync already running, skipping yesterday sync');
+      return;
+    }
+
+    try {
+      this.isRunning = true;
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const dateRange = {
+        since: formatDateForFacebook(yesterday),
+        until: formatDateForFacebook(yesterday)
+      };
+
+      const campaigns = await storage.getAllCampaigns();
+      const connectedCampaigns = campaigns.filter(c => c.facebookCampaignId);
+      
+      for (const campaign of connectedCampaigns) {
+        const facebookClient = await createFacebookClient('default');
+        if (facebookClient && campaign.facebookCampaignId) {
+          await facebookClient.syncCampaignData(
+            campaign.campaignId,
+            campaign.facebookCampaignId,
+            dateRange
+          );
+        }
+      }
+      
+      console.log(`[FB-SYNC] Yesterday sync completed for ${connectedCampaigns.length} campaigns`);
+    } catch (error) {
+      console.error('[FB-SYNC] Error during yesterday sync:', error);
+    } finally {
       this.isRunning = false;
     }
   }

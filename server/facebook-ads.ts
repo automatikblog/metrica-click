@@ -322,3 +322,21 @@ export function getDateRange(days: number): { since: string; until: string } {
     until: formatDateForFacebook(until)
   };
 }
+
+/**
+ * Get comprehensive date range for campaign synchronization
+ * Uses campaign start date or falls back to 90 days
+ */
+export function getCampaignDateRange(campaignStartDate?: string): { since: string; until: string } {
+  const until = new Date(); // Include today for most recent data
+  
+  const since = campaignStartDate ? new Date(campaignStartDate) : new Date();
+  if (!campaignStartDate) {
+    since.setDate(since.getDate() - 90); // Last 90 days as fallback
+  }
+  
+  return {
+    since: formatDateForFacebook(since),
+    until: formatDateForFacebook(until)
+  };
+}

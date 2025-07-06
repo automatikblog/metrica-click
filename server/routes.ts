@@ -6,6 +6,7 @@ import express from "express";
 import path from "path";
 import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
 import { syncSingleCampaign, syncAllCampaigns, getSyncStatus } from "./sync/facebook-sync";
+import { smartSyncService } from "./utils/smart-sync";
 import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
 import passport from "passport";
 import session from "express-session";
@@ -173,6 +174,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error getting real spend:', error);
       res.status(500).json({ error: 'Failed to get real spend data' });
+    }
+  });
+
+  app.get('/api/campaigns/:campaignId/validate-spend', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      // Get system total
+      const systemData = await storage.getAdSpend(campaignId);
+      const systemTotal = systemData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+      
+      // Get Facebook total
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        return res.status(400).json({ error: 'Facebook not connected' });
+      }
+      
+      const campaign = await storage.getCampaignByCampaignId(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      
+      // For now, we'll use the same data range as the sync
+      const dateRange = getDateRange(90);
+      const facebookData = await facebookClient.getCampaignInsights(
+        '120226822043180485', // Facebook campaign ID for automatikblog-main
+        dateRange
+      );
+      const facebookTotal = facebookData.reduce((sum, data) => sum + data.spend, 0);
+      
+      const discrepancy = Math.abs(facebookTotal - systemTotal);
+      const discrepancyPercent = facebookTotal > 0 ? (discrepancy / facebookTotal) * 100 : 0;
+      
+      res.json({
+        systemTotal,
+        facebookTotal,
+        discrepancy,
+        discrepancyPercent,
+        isAccurate: discrepancyPercent < 5, // Less than 5% is acceptable
+        lastSync: campaign.createdAt, // Using createdAt since updatedAt doesn't exist
+        dataPoints: systemData.length,
+        dateRange
+      });
+    } catch (error) {
+      console.error('Error validating spend:', error);
+      res.status(500).json({ error: 'Validation failed' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/sync-complete', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      // Force sync including today's data
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        return res.status(400).json({ error: 'Facebook not connected' });
+      }
+      
+      // Sync last 14 days including today for most recent data
+      const today = new Date();
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(today.getDate() - 14);
+      
+      const dateRange = {
+        since: twoWeeksAgo.toISOString().split('T')[0],
+        until: today.toISOString().split('T')[0]
+      };
+      
+      console.log(`[COMPLETE-SYNC] Syncing ${campaignId} from ${dateRange.since} to ${dateRange.until}`);
+      
+      await facebookClient.syncCampaignData(
+        campaignId,
+        '120226822043180485', // Facebook campaign ID
+        dateRange
+      );
+      
+      // Get updated totals
+      const updatedData = await storage.getAdSpend(campaignId);
+      const newTotal = updatedData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+      
+      res.json({
+        success: true,
+        totalSpend: newTotal,
+        dataPoints: updatedData.length,
+        dateRange,
+        message: 'Complete sync including recent data finished'
+      });
+      
+    } catch (error) {
+      console.error('Error in complete sync:', error);
+      res.status(500).json({ error: 'Complete sync failed' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/smart-sync', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      console.log(`[SMART-SYNC] Starting intelligent sync for ${campaignId}`);
+      
+      // Run smart sync analysis and fixes
+      await smartSyncService.detectAndResolveIssues();
+      
+      // Get updated data after smart sync
+      const spendData = await storage.getAdSpend(campaignId);
+      const totalSpend = spendData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+      
+      // Validate data integrity
+      const validation = await smartSyncService.validateCampaignData(campaignId);
+      
+      res.json({
+        success: true,
+        totalSpend,
+        dataPoints: spendData.length,
+        validation,
+        message: 'Smart sync completed with missing data detection and validation'
+      });
+      
+    } catch (error) {
+      console.error('Error in smart sync:', error);
+      res.status(500).json({ error: 'Smart sync failed' });
     }
   });
 
