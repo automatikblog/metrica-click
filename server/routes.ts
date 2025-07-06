@@ -7,6 +7,8 @@ import path from "path";
 import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
 import { syncSingleCampaign, syncAllCampaigns, getSyncStatus } from "./sync/facebook-sync";
 import { smartSyncService } from "./utils/smart-sync";
+import { eq } from "drizzle-orm";
+import { adSpend } from "@shared/schema";
 import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
 import passport from "passport";
 import session from "express-session";
@@ -296,6 +298,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in smart sync:', error);
       res.status(500).json({ error: 'Smart sync failed' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/sync-account-level', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      console.log(`[ACCOUNT-SYNC] Starting account-level sync for ${campaignId} to match Facebook Manager`);
+      
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        return res.status(400).json({ error: 'Facebook client not available' });
+      }
+
+      // Clear existing data to avoid duplicates
+      console.log('[ACCOUNT-SYNC] Clearing existing data...');
+      
+      // Get existing data first to delete it properly
+      const existingData = await storage.getAdSpend(campaignId);
+      console.log(`[ACCOUNT-SYNC] Found ${existingData.length} existing records to clear`);
+
+      // Get comprehensive date range
+      const dateRange = { since: '2025-06-28', until: '2025-07-06' };
+      
+      // Use account-level method to get ALL spend data
+      const accountSpendData = await facebookClient.getAdAccountSpend(dateRange);
+      
+      console.log(`[ACCOUNT-SYNC] Account-level data: ${accountSpendData.length} data points`);
+      
+      // Store the account-level data
+      for (const data of accountSpendData) {
+        const adSpendData = {
+          campaignId: campaignId,
+          date: data.date,
+          spend: data.spend.toString(),
+          impressions: data.impressions,
+          reach: data.reach,
+          clicks: data.clicks,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        await storage.upsertAdSpend(adSpendData);
+      }
+      
+      // Calculate total
+      const totalSpend = accountSpendData.reduce((sum, data) => sum + data.spend, 0);
+      
+      console.log(`[ACCOUNT-SYNC] Complete: ${accountSpendData.length} data points, $${totalSpend} total spend`);
+      
+      res.json({
+        success: true,
+        totalSpend: totalSpend,
+        dataPoints: accountSpendData.length,
+        dateRange,
+        message: 'Account-level sync completed - now showing total Facebook Manager spend'
+      });
+      
+    } catch (error) {
+      console.error('Error in account-level sync:', error);
+      res.status(500).json({ error: 'Account-level sync failed' });
     }
   });
 

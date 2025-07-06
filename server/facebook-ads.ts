@@ -135,11 +135,36 @@ export class FacebookAdsClient {
 
   /**
    * Get all ad spend data for the account in a date range
+   * Uses account-level insights to capture ALL spend, not just campaign-level
    */
   async getAdAccountSpend(dateRange: { since: string; until: string }): Promise<FacebookAdData[]> {
     try {
+      console.log(`[FB-API] Getting COMPLETE ad account spend for ${this.adAccountId} from ${dateRange.since} to ${dateRange.until}`);
+      
       const account = new AdAccount(this.adAccountId);
-      const insights = await account.getInsights([
+      
+      // Get account-level insights to capture ALL spend including hidden costs
+      const accountInsights = await account.getInsights([
+        'spend',
+        'impressions',
+        'reach',
+        'frequency', 
+        'clicks',
+        'date_start',
+        'date_stop'
+      ], {
+        time_range: {
+          since: dateRange.since,
+          until: dateRange.until
+        },
+        time_increment: 1, // Daily breakdown
+        level: 'account' // Account level captures ALL spend
+      });
+
+      console.log(`[FB-API] Account-level insights returned ${accountInsights.length} data points`);
+      
+      // Also get campaign-level for comparison
+      const campaignInsights = await account.getInsights([
         'campaign_id',
         'campaign_name',
         'spend',
@@ -154,20 +179,31 @@ export class FacebookAdsClient {
           since: dateRange.since,
           until: dateRange.until
         },
-        time_increment: 1, // Daily breakdown
+        time_increment: 1,
         level: 'campaign'
       });
 
-      return insights.map((insight: any) => ({
-        campaignId: insight.campaign_id,
-        campaignName: insight.campaign_name,
+      console.log(`[FB-API] Campaign-level insights returned ${campaignInsights.length} data points`);
+
+      // Calculate totals for debugging
+      const accountTotal = accountInsights.reduce((sum, insight) => sum + parseFloat(insight.spend || '0'), 0);
+      const campaignTotal = campaignInsights.reduce((sum, insight) => sum + parseFloat(insight.spend || '0'), 0);
+      
+      console.log(`[FB-API] Account total: $${accountTotal}, Campaign total: $${campaignTotal}, Difference: $${accountTotal - campaignTotal}`);
+
+      // Use account-level data as the authoritative source (this includes ALL costs)
+      const accountData = accountInsights.map((insight: any) => ({
+        campaignId: 'automatikblog-main', // Map to our campaign
+        campaignName: 'AutomatikBlog Campaign',
         spend: parseFloat(insight.spend || '0'),
         impressions: parseInt(insight.impressions || '0'),
-        reach: parseInt(insight.reach || '0'),
+        reach: parseInt(insight.reach || '0'), 
         frequency: parseFloat(insight.frequency || '0'),
         clicks: parseInt(insight.clicks || '0'),
         date: insight.date_start
       }));
+
+      return accountData;
     } catch (error) {
       console.error('Error fetching ad account spend:', error);
       throw error;
