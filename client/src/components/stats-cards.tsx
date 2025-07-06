@@ -10,6 +10,7 @@ interface Stats {
 export function StatsCards() {
   const { data: stats, isLoading } = useQuery<Stats>({
     queryKey: ["/api/stats"],
+    refetchInterval: 10000, // Refresh every 10 seconds
   });
 
   if (isLoading || !stats) {

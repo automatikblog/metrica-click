@@ -34,6 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Generate or get click ID for a campaign
   app.get("/track/:campaignID", async (req, res) => {
+    console.log('Track request received:', req.params.campaignID, req.query);
     try {
       const { campaignID } = req.params;
       const { referrer, _fbp, _fbc, format } = req.query;
@@ -65,16 +66,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       await storage.createClick(clickData);
+      console.log('Click created successfully:', clickId);
 
       res.json({ clickid: clickId });
     } catch (error) {
       console.error("Error in /track endpoint:", error);
+      console.error("Campaign ID:", req.params.campaignID);
+      console.error("Request params:", req.query);
       res.status(500).json({ error: "Internal server error" });
     }
   });
 
   // Register page view
   app.get("/view", async (req, res) => {
+    console.log('Page view request received:', req.query);
     try {
       const { clickid, referrer } = req.query;
 
@@ -97,10 +102,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       await storage.createPageView(pageViewData);
+      console.log('Page view created successfully for click ID:', req.query.clickid);
 
       res.status(200).send("OK");
     } catch (error) {
       console.error("Error in /view endpoint:", error);
+      console.error("Click ID:", req.query.clickid);
+      console.error("Request params:", req.query);
       res.status(500).json({ error: "Internal server error" });
     }
   });

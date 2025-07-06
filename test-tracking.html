@@ -9,14 +9,43 @@
 <body>
     <h1>Test Page for MétricaClick Tracking</h1>
     <p>This page is used to test the tracking script.</p>
-    <p>Open browser console to see tracking logs.</p>
+    <p><strong>Open browser console to see tracking logs.</strong></p>
+    
+    <div style="background: #f0f0f0; padding: 20px; margin: 20px 0; border-radius: 8px;">
+        <h3>Test URLs:</h3>
+        <p><strong>With campaign ID:</strong><br>
+        <a href="?cmpid=683f45642498fc6fe758357f">test.html?cmpid=683f45642498fc6fe758357f</a></p>
+        
+        <p><strong>With click ID:</strong><br>
+        <a href="?mcid=mc_test_123456">test.html?mcid=mc_test_123456</a></p>
+        
+        <p><strong>With traffic source:</strong><br>
+        <a href="?cmpid=683f45642498fc6fe758357f&tsource=facebook">test.html?cmpid=683f45642498fc6fe758357f&tsource=facebook</a></p>
+    </div>
+    
+    <div style="background: #e8f4fd; padding: 20px; margin: 20px 0; border-radius: 8px;">
+        <h3>Check These in Browser Developer Tools:</h3>
+        <ul>
+            <li><strong>Console:</strong> MétricaClick debug logs</li>
+            <li><strong>Network:</strong> Requests to /track and /view endpoints</li>
+            <li><strong>Application > Cookies:</strong> mcclickid-store and mccid-paid</li>
+            <li><strong>Application > Session Storage:</strong> mcclickid</li>
+        </ul>
+    </div>
     
     <script>
         // Add some debug logging
-        console.log('Page loaded');
+        console.log('Test page loaded');
         console.log('Current cookies:', document.cookie);
         console.log('SessionStorage mcclickid:', sessionStorage.getItem('mcclickid'));
         console.log('URL params:', window.location.search);
+        
+        // Refresh data every 5 seconds to show real-time updates
+        setInterval(() => {
+            console.log('--- Current State ---');
+            console.log('Cookies:', document.cookie);
+            console.log('SessionStorage mcclickid:', sessionStorage.getItem('mcclickid'));
+        }, 5000);
     </script>
 </body>
 </html>

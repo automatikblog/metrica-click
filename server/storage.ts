@@ -113,7 +113,8 @@ export class MemStorage implements IStorage {
     const campaign: Campaign = { 
       ...insertCampaign, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      status: insertCampaign.status || "active"
     };
     this.campaigns.set(id, campaign);
     return campaign;
@@ -137,9 +138,16 @@ export class MemStorage implements IStorage {
   async createClick(insertClick: InsertClick): Promise<Click> {
     const id = this.currentClickId++;
     const click: Click = { 
-      ...insertClick, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      clickId: insertClick.clickId,
+      campaignId: insertClick.campaignId,
+      source: insertClick.source || null,
+      referrer: insertClick.referrer || null,
+      fbp: insertClick.fbp || null,
+      fbc: insertClick.fbc || null,
+      userAgent: insertClick.userAgent || null,
+      ipAddress: insertClick.ipAddress || null
     };
     this.clicks.set(id, click);
     return click;
@@ -163,9 +171,12 @@ export class MemStorage implements IStorage {
   async createPageView(insertPageView: InsertPageView): Promise<PageView> {
     const id = this.currentPageViewId++;
     const pageView: PageView = { 
-      ...insertPageView, 
       id, 
-      createdAt: new Date() 
+      createdAt: new Date(),
+      clickId: insertPageView.clickId,
+      referrer: insertPageView.referrer !== undefined ? insertPageView.referrer : null,
+      userAgent: insertPageView.userAgent !== undefined ? insertPageView.userAgent : null,
+      ipAddress: insertPageView.ipAddress !== undefined ? insertPageView.ipAddress : null
     };
     this.pageViews.set(id, pageView);
     return pageView;

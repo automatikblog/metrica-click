@@ -91,8 +91,12 @@
 
   // Main tracking function
   function track() {
+    console.log('MétricaClick: Starting tracking...');
     const scriptParams = getScriptParams();
     const urlParams = getUrlParams();
+    
+    console.log('MétricaClick: Script params:', scriptParams);
+    console.log('MétricaClick: URL params:', urlParams);
     
     const attribution = scriptParams.attribution || 'lastpaid';
     const cookieDomain = scriptParams.cookiedomain;
@@ -109,47 +113,70 @@
     const currentClickId = getCookie('mcclickid-store');
     const currentPaidClickId = getCookie('mccid-paid');
     
+    console.log('MétricaClick: Attribution model:', attribution);
+    console.log('MétricaClick: Current click ID:', currentClickId);
+    console.log('MétricaClick: Campaign ID:', campaignId);
+    console.log('MétricaClick: Is paid traffic:', isPaidTraffic);
+    console.log('MétricaClick: Click ID from URL:', clickId);
+    
     // Determine if we should use existing click ID or get/generate new one
     if (clickId) {
+      console.log('MétricaClick: Click ID found in URL, checking attribution rules...');
       // Click ID provided in URL
       if (shouldUpdateClickId(currentClickId, clickId, attribution, isPaidTraffic)) {
+        console.log('MétricaClick: Updating click ID based on attribution rules');
         setCookie('mcclickid-store', clickId, cookieDuration, cookieDomain);
         sessionStorage.setItem('mcclickid', clickId);
+        console.log('MétricaClick: Set mcclickid-store cookie and sessionStorage');
         
         if (isPaidTraffic) {
           setCookie('mccid-paid', clickId, cookieDuration, cookieDomain);
+          console.log('MétricaClick: Set mccid-paid cookie for paid traffic');
         }
+      } else {
+        console.log('MétricaClick: Keeping existing click ID based on attribution rules');
       }
       
       // Register page view
       registerPageView(clickId);
     } else if (campaignId) {
+      console.log('MétricaClick: No click ID in URL but campaign ID present, requesting new click ID...');
       // No click ID in URL but campaign ID present - request new click ID
       requestClickId(campaignId, metaCookies, trafficSource)
         .then(function(newClickId) {
+          console.log('MétricaClick: Received new click ID, checking attribution rules...');
           if (shouldUpdateClickId(currentClickId, newClickId, attribution, isPaidTraffic)) {
+            console.log('MétricaClick: Updating with new click ID based on attribution rules');
             setCookie('mcclickid-store', newClickId, cookieDuration, cookieDomain);
             sessionStorage.setItem('mcclickid', newClickId);
+            console.log('MétricaClick: Set mcclickid-store cookie and sessionStorage');
             
             if (isPaidTraffic) {
               setCookie('mccid-paid', newClickId, cookieDuration, cookieDomain);
+              console.log('MétricaClick: Set mccid-paid cookie for paid traffic');
             }
+          } else {
+            console.log('MétricaClick: Keeping existing click ID based on attribution rules');
           }
           
           // Register page view
           registerPageView(newClickId);
         })
         .catch(function(error) {
-          console.error('MetricaClick: Error requesting click ID:', error);
+          console.error('MétricaClick: Error requesting click ID:', error);
         });
     } else if (currentClickId) {
+      console.log('MétricaClick: Using existing click ID for page view registration');
       // Use existing click ID for page view registration
       registerPageView(currentClickId);
+    } else {
+      console.log('MétricaClick: No click ID or campaign ID found, no tracking action taken');
     }
   }
 
   // Request click ID from backend
   function requestClickId(campaignId, metaCookies, trafficSource) {
+    console.log('MétricaClick: Requesting click ID for campaign:', campaignId);
     return new Promise(function(resolve, reject) {
       const params = new URLSearchParams({
         format: 'json',
@@ -161,24 +188,36 @@
       if (trafficSource) params.append('tsource', trafficSource);
       
       const url = `${getBaseUrl()}/track/${campaignId}?${params.toString()}`;
+      console.log('MétricaClick: Making request to:', url);
       
       fetch(url)
         .then(function(response) {
+          console.log('MétricaClick: Track response status:', response.status);
           if (!response.ok) {
             throw new Error('Network response was not ok');
           }
           return response.json();
         })
         .then(function(data) {
+          console.log('MétricaClick: Received click ID:', data.clickid);
           resolve(data.clickid);
         })
-        .catch(reject);
+        .catch(function(error) {
+          console.error('MétricaClick: Error requesting click ID:', error);
+          console.error('MétricaClick: Campaign ID:', campaignId);
+          console.error('MétricaClick: Request URL:', url);
+          reject(error);
+        });
     });
   }
 
   // Register page view
   function registerPageView(clickId) {
-    if (!clickId) return;
+    console.log('MétricaClick: Registering page view for click ID:', clickId);
+    if (!clickId) {
+      console.log('MétricaClick: No click ID provided, skipping page view registration');
+      return;
+    }
     
     const params = new URLSearchParams({
       clickid: clickId,
@@ -186,10 +225,17 @@
     });
     
     const url = `${getBaseUrl()}/view?${params.toString()}`;
+    console.log('MétricaClick: Registering page view at:', url);
     
     fetch(url)
+      .then(function(response) {
+        console.log('MétricaClick: Page view response status:', response.status);
+        if (response.ok) {
+          console.log('MétricaClick: Page view registered successfully');
+        }
+      })
       .catch(function(error) {
-        console.error('MetricaClick: Error registering page view:', error);
+        console.error('MétricaClick: Error registering page view:', error);
       });
   }
 

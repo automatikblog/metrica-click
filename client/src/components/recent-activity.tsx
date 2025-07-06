@@ -4,6 +4,7 @@ import type { Click } from "@shared/schema";
 export function RecentActivity() {
   const { data: clicks, isLoading } = useQuery<Click[]>({
     queryKey: ["/api/clicks"],
+    refetchInterval: 5000, // Refresh every 5 seconds
   });
 
   if (isLoading) {
