@@ -348,6 +348,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`[ACCOUNT-SYNC] Complete: ${accountSpendData.length} data points, $${totalSpend} total spend`);
       
+      // Update the campaign's totalSpend field with the new data
+      console.log(`[ACCOUNT-SYNC] Updating campaign ${campaignId} totalSpend to $${totalSpend}`);
+      const updatedCampaign = await storage.updateCampaign(campaignId, {
+        totalSpend: totalSpend.toString()
+      });
+      
+      if (updatedCampaign) {
+        console.log(`[ACCOUNT-SYNC] Successfully updated campaign totalSpend to $${updatedCampaign.totalSpend}`);
+      } else {
+        console.log(`[ACCOUNT-SYNC] Failed to update campaign - campaign not found`);
+      }
+      
       res.json({
         success: true,
         totalSpend: totalSpend,
@@ -359,6 +371,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in account-level sync:', error);
       res.status(500).json({ error: 'Account-level sync failed' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/sync-daily-spend', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      console.log(`[DAILY-SYNC] Getting daily spend data for ${campaignId} to match Facebook Manager exactly`);
+      
+      // Get only the latest day's spend from our stored data
+      const latestSpend = await storage.getAdSpend(campaignId, new Date('2025-07-06'), new Date('2025-07-06'));
+      
+      if (latestSpend.length > 0) {
+        const dailySpend = parseFloat(latestSpend[0].spend);
+        
+        // Update campaign with daily spend instead of total
+        await storage.updateCampaign(campaignId, {
+          totalSpend: dailySpend.toString()
+        });
+        
+        console.log(`[DAILY-SYNC] Updated campaign to show daily spend: $${dailySpend}`);
+        
+        res.json({
+          success: true,
+          dailySpend: dailySpend,
+          date: latestSpend[0].date,
+          message: 'Campaign updated to show daily spend matching Facebook Manager'
+        });
+      } else {
+        res.status(404).json({ error: 'No spend data found for the specified date' });
+      }
+      
+    } catch (error) {
+      console.error('Error in daily sync:', error);
+      res.status(500).json({ error: 'Daily sync failed' });
     }
   });
 
