@@ -109,6 +109,7 @@
     const trafficSource = urlParams.tsource;
     const metaCookies = getMetaCookies();
     
+    // Consider traffic as paid if we have a campaign ID (including default) or traffic source
     const isPaidTraffic = !!(campaignId || trafficSource);
     const currentClickId = getCookie('mcclickid-store');
     const currentPaidClickId = getCookie('mccid-paid');
@@ -140,8 +141,8 @@
       // Register page view
       registerPageView(clickId);
     } else if (campaignId) {
-      console.log('MétricaClick: No click ID in URL but campaign ID present, requesting new click ID...');
-      // No click ID in URL but campaign ID present - request new click ID
+      console.log('MétricaClick: No click ID in URL but campaign ID present (' + campaignId + '), requesting new click ID...');
+      // No click ID in URL but campaign ID present (including default) - request new click ID
       requestClickId(campaignId, metaCookies, trafficSource)
         .then(function(newClickId) {
           console.log('MétricaClick: Received new click ID, checking attribution rules...');
