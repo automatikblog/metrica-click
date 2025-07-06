@@ -164,6 +164,7 @@
         })
         .catch(function(error) {
           console.error('MétricaClick: Error requesting click ID:', error);
+          logError(error, { action: 'requestClickId', campaignId: campaignId });
         });
     } else if (currentClickId) {
       console.log('MétricaClick: Using existing click ID for page view registration');
@@ -239,21 +240,52 @@
       });
   }
 
+  // Log errors remotely for debugging
+  function logError(error, context) {
+    if (console && console.error) {
+      console.error('MétricaClick Error:', error, context);
+    }
+    
+    // Send error to server for debugging (with fallback for failures)
+    try {
+      fetch(`${getBaseUrl()}/error-log`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          error: error.toString(), 
+          context: context, 
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          timestamp: new Date().toISOString()
+        })
+      }).catch(function() {}); // Silent failure to prevent error loops
+    } catch (e) {
+      // Silent failure for any JSON.stringify or fetch errors
+    }
+  }
+
   // Get base URL for API calls
   function getBaseUrl() {
-    // In production, this would be the domain where the script is hosted
-    // For development, we'll use the current protocol and host
+    // First, try to extract domain from the script src
     const scripts = document.getElementsByTagName('script');
     
     for (let i = 0; i < scripts.length; i++) {
       if (scripts[i].src && scripts[i].src.includes('/mc.js')) {
         const url = new URL(scripts[i].src);
-        return `${url.protocol}//${url.host}`;
+        // Only use if it's not localhost (production environment)
+        if (!url.hostname.includes('localhost') && !url.hostname.includes('127.0.0.1')) {
+          return `${url.protocol}//${url.host}`;
+        }
       }
     }
     
-    // Fallback
-    return window.location.protocol + '//' + window.location.host;
+    // Check if we're in Replit environment
+    if (window.location.hostname.includes('.replit.dev') || window.location.hostname.includes('.replit.app')) {
+      return window.location.protocol + '//' + window.location.host;
+    }
+    
+    // Fallback to localhost for development
+    return 'http://localhost:5000';
   }
 
   // Initialize tracking when DOM is ready

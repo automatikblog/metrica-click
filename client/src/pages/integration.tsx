@@ -18,7 +18,8 @@ export default function Integration() {
   });
 
   const generateScript = () => {
-    const baseUrl = window.location.origin;
+    // Use environment variable in production, fallback to current origin for development
+    const baseUrl = import.meta.env.VITE_API_URL || window.location.origin;
     const params = new URLSearchParams();
     
     if (config.attribution) params.append('attribution', config.attribution);

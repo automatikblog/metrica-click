@@ -6,6 +6,38 @@ import express from "express";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Health check endpoint for debugging connectivity
+  app.get("/health", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      origin: req.headers.origin,
+      userAgent: req.headers["user-agent"],
+      server: "MétricaClick Tracking System"
+    });
+  });
+
+  // Error logging endpoint for remote debugging
+  app.post("/error-log", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    
+    console.error('Remote Error Report:', {
+      error: req.body.error,
+      context: req.body.context,
+      url: req.body.url,
+      timestamp: new Date().toISOString(),
+      userAgent: req.headers["user-agent"]
+    });
+    
+    res.status(200).send("OK");
+  });
+
   // Serve the tracking script
   app.get("/mc.js", (req, res) => {
     res.setHeader("Content-Type", "application/javascript");
