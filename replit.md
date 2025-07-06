@@ -96,6 +96,7 @@ MétricaClick is a comprehensive paid traffic tracking system similar to RedTrac
 
 ## Changelog
 - July 06, 2025. Initial setup
+- July 06, 2025. Migrated from in-memory storage to PostgreSQL database for data persistence
 
 ## User Preferences
 

@@ -193,4 +193,96 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+
+export class DatabaseStorage implements IStorage {
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || undefined;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(insertUser)
+      .returning();
+    return user;
+  }
+
+  async getCampaign(id: number): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, id));
+    return campaign || undefined;
+  }
+
+  async getCampaignByCampaignId(campaignId: string): Promise<Campaign | undefined> {
+    const [campaign] = await db.select().from(campaigns).where(eq(campaigns.campaignId, campaignId));
+    return campaign || undefined;
+  }
+
+  async createCampaign(insertCampaign: InsertCampaign): Promise<Campaign> {
+    const [campaign] = await db
+      .insert(campaigns)
+      .values(insertCampaign)
+      .returning();
+    return campaign;
+  }
+
+  async getAllCampaigns(): Promise<Campaign[]> {
+    return await db.select().from(campaigns);
+  }
+
+  async getClick(id: number): Promise<Click | undefined> {
+    const [click] = await db.select().from(clicks).where(eq(clicks.id, id));
+    return click || undefined;
+  }
+
+  async getClickByClickId(clickId: string): Promise<Click | undefined> {
+    const [click] = await db.select().from(clicks).where(eq(clicks.clickId, clickId));
+    return click || undefined;
+  }
+
+  async createClick(insertClick: InsertClick): Promise<Click> {
+    const [click] = await db
+      .insert(clicks)
+      .values(insertClick)
+      .returning();
+    return click;
+  }
+
+  async getClicksByCampaignId(campaignId: string): Promise<Click[]> {
+    return await db.select().from(clicks).where(eq(clicks.campaignId, campaignId));
+  }
+
+  async getAllClicks(): Promise<Click[]> {
+    return await db.select().from(clicks);
+  }
+
+  async getPageView(id: number): Promise<PageView | undefined> {
+    const [pageView] = await db.select().from(pageViews).where(eq(pageViews.id, id));
+    return pageView || undefined;
+  }
+
+  async createPageView(insertPageView: InsertPageView): Promise<PageView> {
+    const [pageView] = await db
+      .insert(pageViews)
+      .values(insertPageView)
+      .returning();
+    return pageView;
+  }
+
+  async getPageViewsByClickId(clickId: string): Promise<PageView[]> {
+    return await db.select().from(pageViews).where(eq(pageViews.clickId, clickId));
+  }
+
+  async getAllPageViews(): Promise<PageView[]> {
+    return await db.select().from(pageViews);
+  }
+}
+
+export const storage = new DatabaseStorage();
