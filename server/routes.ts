@@ -1,13 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClickSchema, insertPageViewSchema, insertConversionSchema } from "@shared/schema";
+import { insertClickSchema, insertPageViewSchema, insertConversionSchema, conversions } from "@shared/schema";
+import { db } from "./db";
 import express from "express";
 import path from "path";
 import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
 import { syncSingleCampaign, syncAllCampaigns, getSyncStatus } from "./sync/facebook-sync";
 import { smartSyncService } from "./utils/smart-sync";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { adSpend } from "@shared/schema";
 import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
 import { extractSessionId, findClickBySessionId, normalizeConversionData, updateCampaignMetrics } from "./webhook-utils";
@@ -662,6 +663,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Conversion tracking endpoints
+  app.get("/api/conversions", async (req, res) => {
+    try {
+      // Get ALL conversions directly from database using raw SQL to include direct conversions
+      const allConversions = await db.select().from(conversions);
+      
+      // Sort by creation date manually
+      allConversions.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(allConversions);
+    } catch (error) {
+      console.error("Error fetching all conversions:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.post("/api/conversions", async (req, res) => {
     try {
       const { clickId, conversionType, value, currency } = req.body;
