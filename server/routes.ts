@@ -536,10 +536,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Format must be json" });
       }
 
-      // Check if campaign exists
-      const campaign = await storage.getCampaignByCampaignId(campaignID);
+      // Check if campaign exists or create organic campaign
+      let campaign = await storage.getCampaignByCampaignId(campaignID);
       if (!campaign) {
-        return res.status(404).json({ error: "Campaign not found" });
+        // Handle special case for organic traffic
+        if (campaignID === 'organic') {
+          // Create organic campaign if it doesn't exist
+          campaign = await storage.createCampaign({
+            name: "Organic Traffic",
+            campaignId: "organic",
+            status: "active"
+          });
+          console.log('Created organic campaign:', campaign);
+        } else {
+          return res.status(404).json({ error: "Campaign not found" });
+        }
       }
 
       // Generate unique click ID

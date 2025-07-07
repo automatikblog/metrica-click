@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MétricaClick - Teste de Debug Mode</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-left: 4px solid #3498db;
+            border-radius: 5px;
+        }
+        .debug-info {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+        }
+        .button:hover {
+            background: #2980b9;
+        }
+        .success {
+            background: #27ae60;
+        }
+        .warning {
+            background: #f39c12;
+        }
+        code {
+            background: #ecf0f1;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 MétricaClick - Teste de Debug Mode</h1>
+        
+        <div class="section">
+            <h2>📋 Instruções de Teste</h2>
+            <p>Esta página demonstra o novo modo debug do MétricaClick. Abra o console do navegador (F12) para ver os logs detalhados.</p>
+        </div>
+
+        <div class="section">
+            <h2>🚀 Cenários de Teste</h2>
+            
+            <h3>1. Teste com Debug Mode ATIVADO</h3>
+            <a href="?mcdebug=true" class="button success">Ativar Debug Mode</a>
+            <p><small>Adiciona <code>?mcdebug=true</code> na URL - você verá logs detalhados no console</small></p>
+            
+            <h3>2. Teste de Tracking Universal (Tráfego Orgânico)</h3>
+            <a href="?mcdebug=true" class="button">Simular Tráfego Orgânico</a>
+            <p><small>Sem campaign ID - será rastreado como "organic"</small></p>
+            
+            <h3>3. Teste com Campaign ID</h3>
+            <a href="?cmpid=test-campaign&mcdebug=true" class="button">Simular Tráfego Pago</a>
+            <p><small>Com campaign ID específico</small></p>
+            
+            <h3>4. Teste com Parâmetros do Facebook</h3>
+            <a href="?cmpid=fb-campaign&fbclid=abc123&mcdebug=true" class="button">Simular Tráfego Facebook</a>
+            <p><small>Com parâmetros Facebook para tracking</small></p>
+        </div>
+
+        <div class="section">
+            <h2>🛠️ Configuração Atual do Script</h2>
+            <div class="debug-info">
+                <p><strong>Script URL:</strong> <span id="script-url"></span></p>
+                <p><strong>Universal Tracking:</strong> Ativado por padrão</p>
+                <p><strong>Cookie Domain:</strong> Auto-detectado</p>
+                <p><strong>Attribution Model:</strong> lastpaid</p>
+                <p><strong>Cookie Duration:</strong> 90 dias</p>
+                <p><strong>Retry on Error:</strong> 3 tentativas com backoff exponencial</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📊 O que procurar no Console:</h2>
+            <ul>
+                <li><strong>[MétricaClick]</strong> - Logs de debug quando ativado</li>
+                <li><strong>Script params loaded</strong> - Parâmetros de configuração</li>
+                <li><strong>URL params extracted</strong> - Parâmetros da URL</li>
+                <li><strong>Requesting click ID</strong> - Tentativas de tracking</li>
+                <li><strong>Universal tracking: true</strong> - Confirmação do tracking universal</li>
+                <li><strong>Retry logic</strong> - Tentativas em caso de erro</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>💡 Melhorias Implementadas</h2>
+            <ul>
+                <li>✅ <strong>Debug Mode:</strong> Ative com <code>?mcdebug=true</code> ou <code>debug=true</code> no script</li>
+                <li>✅ <strong>Tracking Universal:</strong> Captura TODO tráfego, não apenas campanhas pagas</li>
+                <li>✅ <strong>Cookie Domain Flexível:</strong> Auto-detecta o domínio correto</li>
+                <li>✅ <strong>Sistema de Retry:</strong> 3 tentativas com backoff exponencial</li>
+                <li>✅ <strong>Campaign "Organic":</strong> Criada automaticamente para tráfego direto</li>
+                <li>✅ <strong>Track All Visits:</strong> Opção para rastrear todas as visitas</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- MétricaClick tracking script -->
+    <script>
+        document.getElementById('script-url').textContent = window.location.origin + '/mc.js';
+    </script>
+    <script src="/mc.js?attribution=lastpaid&cookiedomain=.localhost&cookieduration=90&universaltracking=true&defaultcampaignid=test-default"></script>
+</body>
+</html>
