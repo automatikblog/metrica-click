@@ -6,7 +6,7 @@ import { db } from "./db";
 import express from "express";
 import path from "path";
 import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
-import { syncSingleCampaign, syncAllCampaigns, getSyncStatus } from "./sync/facebook-sync";
+import { syncSingleCampaign, syncAllCampaigns, getSyncStatus, syncTodayData } from "./sync/facebook-sync";
 import { smartSyncService } from "./utils/smart-sync";
 import { eq, desc } from "drizzle-orm";
 import { adSpend } from "@shared/schema";
@@ -373,6 +373,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error in account-level sync:', error);
       res.status(500).json({ error: 'Account-level sync failed' });
+    }
+  });
+
+  app.post('/api/campaigns/:campaignId/sync-today', async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      
+      console.log(`[TODAY-SYNC] Syncing today's data for ${campaignId}`);
+      
+      // Execute today's sync
+      await syncTodayData();
+      
+      // Get updated campaign data
+      const updatedCampaign = await storage.getCampaignByCampaignId(campaignId);
+      if (!updatedCampaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      
+      // Get today's spend data
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      const todaySpend = await storage.getAdSpend(campaignId, today, today);
+      
+      const dailySpend = todaySpend.length > 0 ? parseFloat(todaySpend[0].spend) : 0;
+      
+      console.log(`[TODAY-SYNC] Completed for ${campaignId}. Today's spend: $${dailySpend}`);
+      
+      res.json({
+        success: true,
+        campaignId,
+        dailySpend,
+        totalSpend: parseFloat(updatedCampaign.totalSpend || '0'),
+        date: todayStr,
+        dataPoints: todaySpend.length,
+        message: `Today's sync completed successfully`
+      });
+      
+    } catch (error) {
+      console.error('Error in today sync:', error);
+      res.status(500).json({ error: 'Today sync failed', details: error.message });
     }
   });
 

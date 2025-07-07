@@ -57,10 +57,19 @@ export class FacebookSyncService {
       timezone: 'America/New_York'
     });
 
+    // Today's data sync every hour during business hours (8 AM - 10 PM)
+    cron.schedule('0 8-22 * * *', () => {
+      console.log('[FB-SYNC] Starting hourly today data sync...');
+      this.syncTodayData();
+    }, {
+      timezone: 'America/New_York'
+    });
+
     console.log('[FB-SYNC] Multi-frequency sync scheduled:');
     console.log('[FB-SYNC] - Full sync: 2:00 AM EST daily');
     console.log('[FB-SYNC] - Incremental: Every 4 hours');
     console.log('[FB-SYNC] - Yesterday data: 10:00 AM EST daily');
+    console.log('[FB-SYNC] - Today data: Every hour 8 AM - 10 PM EST');
   }
 
   /**
@@ -306,6 +315,63 @@ export class FacebookSyncService {
   }
 
   /**
+   * Sync today's data specifically (for real-time updates)
+   */
+  async syncTodayData(): Promise<void> {
+    if (this.isRunning) {
+      console.log('[FB-SYNC] Sync already running, skipping today sync');
+      return;
+    }
+
+    try {
+      this.isRunning = true;
+      const today = new Date();
+      
+      const dateRange = {
+        since: formatDateForFacebook(today),
+        until: formatDateForFacebook(today)
+      };
+
+      console.log(`[FB-SYNC] Syncing today's data: ${dateRange.since}`);
+
+      const campaigns = await storage.getAllCampaigns();
+      const connectedCampaigns = [];
+
+      for (const campaign of campaigns) {
+        const settings = await storage.getCampaignSettings(campaign.campaignId);
+        if (settings?.fbCampaignId) {
+          connectedCampaigns.push({
+            internal: campaign,
+            facebook: settings.fbCampaignId
+          });
+        }
+      }
+
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        throw new Error('Facebook client not available');
+      }
+
+      for (const campaignPair of connectedCampaigns) {
+        try {
+          await facebookClient.syncCampaignData(
+            campaignPair.internal.campaignId,
+            campaignPair.facebook,
+            dateRange
+          );
+          console.log(`[FB-SYNC] Today sync completed for ${campaignPair.internal.campaignId}`);
+        } catch (error) {
+          console.error(`[FB-SYNC] Error syncing today data for ${campaignPair.internal.campaignId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('[FB-SYNC] Error during today sync:', error);
+    } finally {
+      this.isRunning = false;
+    }
+  }
+
+  /**
    * Sync yesterday's data specifically (more stable)
    */
   async syncYesterdayData(): Promise<void> {
@@ -396,4 +462,8 @@ export async function syncSingleCampaign(campaignId: string): Promise<SyncResult
 
 export function getSyncStatus() {
   return facebookSyncService.getSyncStatus();
+}
+
+export async function syncTodayData(): Promise<void> {
+  return await facebookSyncService.syncTodayData();
 }

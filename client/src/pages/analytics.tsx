@@ -1,10 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import { DateRangeSelector, type DateRange } from "@/components/date-range-selector";
 import { useCampaigns } from "@/hooks/use-campaigns";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -13,7 +16,8 @@ import {
   ShoppingCart,
   Activity,
   BarChart3,
-  PieChart
+  PieChart,
+  RefreshCw
 } from "lucide-react";
 import { subDays } from "date-fns";
 import type { Campaign, Click, PageView, Conversion, AdSpend } from "@shared/schema";
@@ -52,6 +56,36 @@ export default function Analytics() {
     const date = new Date(dateStr);
     return date >= from && date <= to;
   };
+
+  const { toast } = useToast();
+
+  // Mutation for refreshing Facebook Ads spend data
+  const refreshSpendMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/campaigns/automatikblog-main/sync-today', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) throw new Error('Failed to refresh spend data');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Gastos Atualizados",
+        description: `Sync concluído. Gasto de hoje: ${formatCurrency(data.dailySpend)}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/campaigns'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Erro ao Atualizar",
+        description: error.message || "Falha na atualização dos gastos",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ dateRange });
 
@@ -160,10 +194,22 @@ export default function Analytics() {
           <h2 className="text-2xl font-bold text-gray-900">Analytics</h2>
           <p className="text-gray-600">Detailed tracking analytics and insights</p>
         </div>
-        <DateRangeSelector
-          value={dateRange}
-          onChange={setDateRange}
-        />
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refreshSpendMutation.mutate()}
+            disabled={refreshSpendMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${refreshSpendMutation.isPending ? 'animate-spin' : ''}`} />
+            {refreshSpendMutation.isPending ? 'Atualizando...' : 'Atualizar Gastos'}
+          </Button>
+          <DateRangeSelector
+            value={dateRange}
+            onChange={setDateRange}
+          />
+        </div>
       </div>
 
       {/* Key Performance Metrics */}
