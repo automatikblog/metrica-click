@@ -157,6 +157,22 @@ export default function Integration() {
                   <div><code>tsource</code> - Traffic source (optional)</div>
                   <div><code>_fbp</code> - Facebook browser ID</div>
                   <div><code>_fbc</code> - Facebook click ID</div>
+                  <div className="mt-3 font-medium">Meta Ads Parameters:</div>
+                  <div><code>sub1</code> - Ad ID &#40;&#123;&#123;ad.id&#125;&#125;&#41;</div>
+                  <div><code>sub2</code> - AdSet ID &#40;&#123;&#123;adset.id&#125;&#125;&#41;</div>
+                  <div><code>sub3</code> - Campaign ID &#40;&#123;&#123;campaign.id&#125;&#125;&#41;</div>
+                  <div><code>sub4</code> - Ad Name &#40;&#123;&#123;ad.name&#125;&#125;&#41;</div>
+                  <div><code>sub5</code> - AdSet Name &#40;&#123;&#123;adset.name&#125;&#125;&#41;</div>
+                  <div><code>sub6</code> - Campaign Name &#40;&#123;&#123;campaign.name&#125;&#125;&#41;</div>
+                  <div><code>sub7</code> - Placement &#40;&#123;&#123;placement&#125;&#125;&#41;</div>
+                  <div><code>sub8</code> - Site Source &#40;&#123;&#123;site_source_name&#125;&#125;&#41;</div>
+                  <div className="mt-3 font-medium">UTM Parameters:</div>
+                  <div><code>utm_source</code> - Traffic source</div>
+                  <div><code>utm_medium</code> - Traffic medium</div>
+                  <div><code>utm_campaign</code> - Campaign identifier</div>
+                  <div><code>utm_content</code> - Ad content</div>
+                  <div><code>utm_term</code> - Keyword term</div>
+                  <div><code>utm_id</code> - Unique campaign ID</div>
                 </div>
               </div>
             </div>

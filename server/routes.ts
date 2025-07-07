@@ -600,7 +600,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         browserVersion: deviceInfo.browserVersion,
         connectionType: geoData?.mobile ? 'mobile' : 'broadband',
         isProxy: geoData?.proxy || false,
-        isCrawler: deviceInfo.isCrawler
+        isCrawler: deviceInfo.isCrawler,
+        
+        // Meta Ads tracking parameters
+        sub1: req.query.sub1 as string || undefined,
+        sub2: req.query.sub2 as string || undefined,
+        sub3: req.query.sub3 as string || undefined,
+        sub4: req.query.sub4 as string || undefined,
+        sub5: req.query.sub5 as string || undefined,
+        sub6: req.query.sub6 as string || undefined,
+        sub7: req.query.sub7 as string || undefined,
+        sub8: req.query.sub8 as string || undefined,
+        
+        // UTM parameters
+        utmSource: req.query.utm_source as string || undefined,
+        utmMedium: req.query.utm_medium as string || undefined,
+        utmCampaign: req.query.utm_campaign as string || undefined,
+        utmContent: req.query.utm_content as string || undefined,
+        utmTerm: req.query.utm_term as string || undefined,
+        utmId: req.query.utm_id as string || undefined,
       };
 
       await storage.createClick(clickData);

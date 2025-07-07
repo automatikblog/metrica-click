@@ -48,6 +48,24 @@ export const clicks = pgTable("clicks", {
   isProxy: boolean("is_proxy"),
   isCrawler: boolean("is_crawler"),
   
+  // Meta Ads tracking parameters
+  sub1: text("sub1"), // ad.id
+  sub2: text("sub2"), // adset.id
+  sub3: text("sub3"), // campaign.id
+  sub4: text("sub4"), // ad.name
+  sub5: text("sub5"), // adset.name
+  sub6: text("sub6"), // campaign.name
+  sub7: text("sub7"), // placement
+  sub8: text("sub8"), // site_source_name
+  
+  // UTM parameters
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  utmContent: text("utm_content"),
+  utmTerm: text("utm_term"),
+  utmId: text("utm_id"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

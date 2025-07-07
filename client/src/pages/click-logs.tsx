@@ -93,26 +93,72 @@ export default function ClickLogs() {
     return { type: "desktop", icon: Monitor };
   };
 
-  // Export to CSV
+  // Export to CSV with Meta Ads and UTM parameters
   const exportToCSV = () => {
-    const headers = ["Click ID", "Campaign ID", "Source", "Referrer", "User Agent", "IP Address", "Created At", "Converted", "Conversion Value"];
+    if (!filteredClicks?.length) return;
+    
+    const headers = [
+      "Click ID",
+      "Campaign ID", 
+      "Source",
+      "Referrer",
+      "IP Address",
+      "Country",
+      "City",
+      "Device Type",
+      "Browser",
+      "Sub1 (Ad ID)",
+      "Sub2 (AdSet ID)",
+      "Sub3 (Campaign ID)",
+      "Sub4 (Ad Name)",
+      "Sub5 (AdSet Name)",
+      "Sub6 (Campaign Name)",
+      "Sub7 (Placement)",
+      "Sub8 (Site Source)",
+      "UTM Source",
+      "UTM Medium",
+      "UTM Campaign",
+      "UTM Content",
+      "UTM Term",
+      "UTM ID",
+      "Converted",
+      "Conversion Value",
+      "Created At"
+    ];
+    
     const rows = filteredClicks.map(click => [
       click.clickId,
       click.campaignId,
-      click.source || "direct",
+      click.source || "",
       click.referrer || "",
-      click.userAgent || "",
       click.ipAddress || "",
-      new Date(click.createdAt).toISOString(),
+      click.country || "",
+      click.city || "",
+      click.deviceType || "",
+      click.browser || "",
+      click.sub1 || "",
+      click.sub2 || "",
+      click.sub3 || "",
+      click.sub4 || "",
+      click.sub5 || "",
+      click.sub6 || "",
+      click.sub7 || "",
+      click.sub8 || "",
+      click.utmSource || "",
+      click.utmMedium || "",
+      click.utmCampaign || "",
+      click.utmContent || "",
+      click.utmTerm || "",
+      click.utmId || "",
       click.convertedAt ? "Yes" : "No",
-      click.conversionValue || ""
+      click.conversionValue || "",
+      new Date(click.createdAt).toISOString()
     ]);
-
-    const csvContent = [
-      headers.join(","),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(","))
-    ].join("\n");
-
+    
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(field => `"${field}"`).join(","))
+      .join("\n");
+    
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -273,6 +319,8 @@ export default function ClickLogs() {
                   <th className="text-left p-4 font-medium text-gray-700">Click ID</th>
                   <th className="text-left p-4 font-medium text-gray-700">Campanha</th>
                   <th className="text-left p-4 font-medium text-gray-700">Source</th>
+                  <th className="text-left p-4 font-medium text-gray-700">Meta Ads</th>
+                  <th className="text-left p-4 font-medium text-gray-700">UTM</th>
                   <th className="text-left p-4 font-medium text-gray-700">Device</th>
                   <th className="text-left p-4 font-medium text-gray-700">Data/Hora</th>
                   <th className="text-left p-4 font-medium text-gray-700">Status</th>
@@ -282,7 +330,7 @@ export default function ClickLogs() {
               <tbody>
                 {filteredClicks.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center p-8 text-gray-500">
+                    <td colSpan={9} className="text-center p-8 text-gray-500">
                       Nenhum click encontrado com os filtros aplicados
                     </td>
                   </tr>
@@ -307,6 +355,26 @@ export default function ClickLogs() {
                             <Badge variant={click.source ? "default" : "secondary"}>
                               {click.source || "direct"}
                             </Badge>
+                          </td>
+                          <td className="p-4">
+                            {click.sub4 || click.sub1 ? (
+                              <div className="text-xs">
+                                {click.sub4 && <div className="font-medium truncate">{click.sub4}</div>}
+                                {click.sub1 && <div className="text-gray-500">ID: {click.sub1}</div>}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
+                          </td>
+                          <td className="p-4">
+                            {click.utmSource || click.utmMedium ? (
+                              <div className="text-xs">
+                                {click.utmSource && <div className="font-medium">{click.utmSource}</div>}
+                                {click.utmMedium && <div className="text-gray-500">{click.utmMedium}</div>}
+                              </div>
+                            ) : (
+                              <span className="text-gray-400 text-xs">-</span>
+                            )}
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
@@ -340,52 +408,86 @@ export default function ClickLogs() {
                         </tr>
                         {isExpanded && (
                           <tr key={`expanded-${click.id}`} className="bg-gray-50">
-                            <td colSpan={7} className="p-4">
-                              <div className="space-y-2 text-sm">
-                                <div>
-                                  <strong>Click ID Completo:</strong>
-                                  <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs">
-                                    {click.clickId}
-                                  </code>
+                            <td colSpan={9} className="p-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                <div className="space-y-2">
+                                  <div>
+                                    <strong>Click ID Completo:</strong>
+                                    <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs block mt-1">
+                                      {click.clickId}
+                                    </code>
+                                  </div>
+                                  {click.referrer && (
+                                    <div>
+                                      <strong>Referrer:</strong>
+                                      <a href={click.referrer} target="_blank" rel="noopener noreferrer" 
+                                         className="ml-2 text-blue-600 hover:underline inline-flex items-center gap-1">
+                                        {click.referrer}
+                                        <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    </div>
+                                  )}
+                                  {click.userAgent && (
+                                    <div>
+                                      <strong>User Agent:</strong>
+                                      <span className="ml-2 text-gray-600 block">{click.userAgent}</span>
+                                    </div>
+                                  )}
+                                  {click.ipAddress && (
+                                    <div>
+                                      <strong>IP Address:</strong>
+                                      <span className="ml-2 text-gray-600">{click.ipAddress}</span>
+                                    </div>
+                                  )}
+                                  {(click.fbp || click.fbc) && (
+                                    <div>
+                                      <strong>Facebook Pixels:</strong>
+                                      <div className="ml-2 space-y-1">
+                                        {click.fbp && <div className="text-gray-600">_fbp: {click.fbp}</div>}
+                                        {click.fbc && <div className="text-gray-600">_fbc: {click.fbc}</div>}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
-                                {click.referrer && (
-                                  <div>
-                                    <strong>Referrer:</strong>
-                                    <a href={click.referrer} target="_blank" rel="noopener noreferrer" 
-                                       className="ml-2 text-blue-600 hover:underline inline-flex items-center gap-1">
-                                      {click.referrer}
-                                      <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                  </div>
-                                )}
-                                {click.userAgent && (
-                                  <div>
-                                    <strong>User Agent:</strong>
-                                    <span className="ml-2 text-gray-600">{click.userAgent}</span>
-                                  </div>
-                                )}
-                                {click.ipAddress && (
-                                  <div>
-                                    <strong>IP Address:</strong>
-                                    <span className="ml-2 text-gray-600">{click.ipAddress}</span>
-                                  </div>
-                                )}
-                                {(click.fbp || click.fbc) && (
-                                  <div>
-                                    <strong>Facebook Pixels:</strong>
-                                    {click.fbp && <span className="ml-2 text-gray-600">_fbp: {click.fbp}</span>}
-                                    {click.fbc && <span className="ml-2 text-gray-600">_fbc: {click.fbc}</span>}
-                                  </div>
-                                )}
-                                {click.convertedAt && (
-                                  <div>
-                                    <strong>Conversão:</strong>
-                                    <span className="ml-2 text-green-600">
-                                      {new Date(click.convertedAt).toLocaleString("pt-BR")}
-                                      {click.conversionValue && ` - R$ ${click.conversionValue}`}
-                                    </span>
-                                  </div>
-                                )}
+                                <div className="space-y-2">
+                                  {(click.sub1 || click.sub2 || click.sub3 || click.sub4 || click.sub5 || click.sub6 || click.sub7 || click.sub8) && (
+                                    <div>
+                                      <strong>Meta Ads Parâmetros:</strong>
+                                      <div className="ml-2 space-y-1 mt-1">
+                                        {click.sub1 && <div className="text-gray-600">Ad ID: {click.sub1}</div>}
+                                        {click.sub2 && <div className="text-gray-600">AdSet ID: {click.sub2}</div>}
+                                        {click.sub3 && <div className="text-gray-600">Campaign ID: {click.sub3}</div>}
+                                        {click.sub4 && <div className="text-gray-600">Ad Name: {click.sub4}</div>}
+                                        {click.sub5 && <div className="text-gray-600">AdSet Name: {click.sub5}</div>}
+                                        {click.sub6 && <div className="text-gray-600">Campaign Name: {click.sub6}</div>}
+                                        {click.sub7 && <div className="text-gray-600">Placement: {click.sub7}</div>}
+                                        {click.sub8 && <div className="text-gray-600">Site Source: {click.sub8}</div>}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {(click.utmSource || click.utmMedium || click.utmCampaign || click.utmContent || click.utmTerm || click.utmId) && (
+                                    <div>
+                                      <strong>UTM Parâmetros:</strong>
+                                      <div className="ml-2 space-y-1 mt-1">
+                                        {click.utmSource && <div className="text-gray-600">Source: {click.utmSource}</div>}
+                                        {click.utmMedium && <div className="text-gray-600">Medium: {click.utmMedium}</div>}
+                                        {click.utmCampaign && <div className="text-gray-600">Campaign: {click.utmCampaign}</div>}
+                                        {click.utmContent && <div className="text-gray-600">Content: {click.utmContent}</div>}
+                                        {click.utmTerm && <div className="text-gray-600">Term: {click.utmTerm}</div>}
+                                        {click.utmId && <div className="text-gray-600">ID: {click.utmId}</div>}
+                                      </div>
+                                    </div>
+                                  )}
+                                  {click.convertedAt && (
+                                    <div>
+                                      <strong>Conversão:</strong>
+                                      <span className="ml-2 text-green-600">
+                                        {new Date(click.convertedAt).toLocaleString("pt-BR")}
+                                        {click.conversionValue && ` - R$ ${click.conversionValue}`}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                             </td>
                           </tr>

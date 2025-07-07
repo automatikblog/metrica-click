@@ -205,7 +205,7 @@
       });
       
       // Request new click ID
-      requestClickId(effectiveCampaignId, metaCookies, trackingSource)
+      requestClickId(effectiveCampaignId, metaCookies, trackingSource, urlParams)
         .then(function(newClickId) {
           log('Received new click ID', newClickId);
           if (shouldUpdateClickId(currentClickId, newClickId, attribution, isPaidTraffic)) {
@@ -245,7 +245,7 @@
   }
 
   // Request click ID from backend with retry mechanism
-  function requestClickId(campaignId, metaCookies, trafficSource, retryCount) {
+  function requestClickId(campaignId, metaCookies, trafficSource, urlParams, retryCount) {
     retryCount = retryCount || 0;
     const maxRetries = 3;
     const retryDelay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
@@ -265,6 +265,24 @@
       if (metaCookies._fbp) params.append('_fbp', metaCookies._fbp);
       if (metaCookies._fbc) params.append('_fbc', metaCookies._fbc);
       if (trafficSource) params.append('tsource', trafficSource);
+      
+      // Meta Ads parameters
+      if (urlParams.sub1) params.append('sub1', urlParams.sub1);
+      if (urlParams.sub2) params.append('sub2', urlParams.sub2);
+      if (urlParams.sub3) params.append('sub3', urlParams.sub3);
+      if (urlParams.sub4) params.append('sub4', urlParams.sub4);
+      if (urlParams.sub5) params.append('sub5', urlParams.sub5);
+      if (urlParams.sub6) params.append('sub6', urlParams.sub6);
+      if (urlParams.sub7) params.append('sub7', urlParams.sub7);
+      if (urlParams.sub8) params.append('sub8', urlParams.sub8);
+      
+      // UTM parameters
+      if (urlParams.utm_source) params.append('utm_source', urlParams.utm_source);
+      if (urlParams.utm_medium) params.append('utm_medium', urlParams.utm_medium);
+      if (urlParams.utm_campaign) params.append('utm_campaign', urlParams.utm_campaign);
+      if (urlParams.utm_content) params.append('utm_content', urlParams.utm_content);
+      if (urlParams.utm_term) params.append('utm_term', urlParams.utm_term);
+      if (urlParams.utm_id) params.append('utm_id', urlParams.utm_id);
       
       const url = `${getBaseUrl()}/track/${campaignId}?${params.toString()}`;
       log('Making request to:', url);
@@ -293,7 +311,7 @@
           if (retryCount < maxRetries) {
             log(`Retrying in ${retryDelay}ms...`, null);
             setTimeout(function() {
-              requestClickId(campaignId, metaCookies, trafficSource, retryCount + 1)
+              requestClickId(campaignId, metaCookies, trafficSource, urlParams, retryCount + 1)
                 .then(resolve)
                 .catch(reject);
             }, retryDelay);

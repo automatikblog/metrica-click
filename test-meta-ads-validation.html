@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste Meta Ads Parameters - MétricaClick</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; }
+        .test-url { background: #f5f5f5; padding: 10px; margin: 10px 0; overflow-wrap: break-word; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .results { margin: 10px 0; padding: 10px; background: #e7f3ff; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Teste de Parâmetros Meta Ads - MétricaClick</h1>
+    
+    <div class="test-section">
+        <h2>📋 Cenário de Teste</h2>
+        <p><strong>Objetivo:</strong> Validar se o sistema está capturando corretamente todos os parâmetros Meta Ads (sub1-sub8) e UTM.</p>
+        
+        <h3>URL de Teste Completa:</h3>
+        <div class="test-url">
+            <strong>URL Base:</strong> https://4a2ffbc1-3812-4901-ae4a-61bbc49a266c-00-364foszswqbwy.janeway.replit.dev/track/test-meta-ads<br>
+            <strong>Parâmetros:</strong><br>
+            ?format=json<br>
+            &sub1=120221436830730485 (ad.id)<br>
+            &sub2=120221307912330485 (adset.id)<br>
+            &sub3=120221307912350485 (campaign.id)<br>
+            &sub4=ad_vd_1artigo_05 (ad.name)<br>
+            &sub5=conjunto01 (adset.name)<br>
+            &sub6=automatikblog_16abr25_1artigo (campaign.name)<br>
+            &sub7=Facebook_Mobile_Feed (placement)<br>
+            &sub8=facebook (site_source_name)<br>
+            &utm_source=facebook<br>
+            &utm_medium=paid<br>
+            &utm_campaign=120221307912350485<br>
+            &utm_content=120221436830730485<br>
+            &utm_term=120221307912330485<br>
+            &utm_id=120221307912350485
+        </div>
+        
+        <button onclick="executarTeste()">🚀 Executar Teste de Tracking</button>
+        <div id="results" class="results" style="display: none;"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>✅ Checklist de Validação</h2>
+        <ul>
+            <li>[ ] Click ID gerado com sucesso</li>
+            <li>[ ] Parâmetros sub1-sub8 salvos no banco</li>
+            <li>[ ] Parâmetros UTM salvos no banco</li>
+            <li>[ ] Dados visíveis no painel Logs de Clicks</li>
+            <li>[ ] Export CSV incluindo novos campos</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 Comandos SQL para Verificação</h2>
+        <div class="test-url">
+            <strong>Verificar último click criado:</strong><br>
+            SELECT click_id, sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8, <br>
+            utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_id, created_at<br>
+            FROM clicks WHERE click_id LIKE '%test-meta-ads%' ORDER BY created_at DESC LIMIT 1;
+        </div>
+    </div>
+
+    <script>
+        async function executarTeste() {
+            const results = document.getElementById('results');
+            results.style.display = 'block';
+            results.innerHTML = '<p>⏳ Executando teste...</p>';
+            
+            try {
+                const testUrl = 'http://localhost:5000/track/test-meta-ads?format=json&sub1=120221436830730485&sub2=120221307912330485&sub3=120221307912350485&sub4=ad_vd_1artigo_05&sub5=conjunto01&sub6=automatikblog_16abr25_1artigo&sub7=Facebook_Mobile_Feed&sub8=facebook&utm_source=facebook&utm_medium=paid&utm_campaign=120221307912350485&utm_content=120221436830730485&utm_term=120221307912330485&utm_id=120221307912350485';
+                
+                const response = await fetch(testUrl);
+                const data = await response.json();
+                
+                if (response.ok && data.clickid) {
+                    results.innerHTML = `
+                        <h3>✅ Teste Executado com Sucesso!</h3>
+                        <p><strong>Click ID gerado:</strong> ${data.clickid}</p>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Próximos passos:</strong></p>
+                        <ul>
+                            <li>Verificar no painel "Logs de Clicks" se os parâmetros Meta Ads estão visíveis</li>
+                            <li>Expandir a linha do click para ver todos os dados capturados</li>
+                            <li>Testar exportação CSV para validar inclusão dos novos campos</li>
+                        </ul>
+                    `;
+                } else {
+                    results.innerHTML = `
+                        <h3>❌ Erro no Teste</h3>
+                        <p><strong>Status:</strong> ${response.status}</p>
+                        <p><strong>Erro:</strong> ${data.error || 'Erro desconhecido'}</p>
+                        <p><strong>Ação necessária:</strong> Verificar se a campanha "test-meta-ads" existe</p>
+                    `;
+                }
+            } catch (error) {
+                results.innerHTML = `
+                    <h3>❌ Erro de Conexão</h3>
+                    <p><strong>Erro:</strong> ${error.message}</p>
+                    <p><strong>Ação necessária:</strong> Verificar se o servidor está rodando na porta 5000</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
