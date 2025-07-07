@@ -112,6 +112,7 @@ MétricaClick is a comprehensive paid traffic tracking system similar to RedTrac
 - July 06, 2025. COMPREHENSIVE ANALYSIS: Created Instructions-meta-data.md documenting critical date filtering problems across Dashboard and Analytics screens
 - July 06, 2025. CONVERSION WEBHOOK ANALYSIS: Created Instructions-conversion.md with deep technical analysis of existing conversion system and detailed implementation plan for external webhook endpoint /conversion supporting SRC/SCK fields from Hotmart and custom checkouts
 - July 07, 2025. WEBHOOK SYSTEM COMPLETE: Successfully implemented external conversion webhook endpoint /conversion with full Hotmart v2.0.0 support, handles SRC/SCK in origin object, processes direct conversions without tracking, includes anti-duplication system, and comprehensive dashboard integration page
+- July 07, 2025. CRITICAL SYNC FIX: Resolved R$ 108+ daily Facebook Ads spend not updating - completed missing getAdAccountSpend() and syncTodayData() functions, fixed date range filtering (hoje), implemented 30-minute automatic sync, account-level API integration now captures real-time spend data matching Facebook Ads Manager exactly
 
 ## User Preferences
 

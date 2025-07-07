@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { FacebookAdsClient, createFacebookClient, getDateRange } from '../facebook-ads';
+import { FacebookAdsClient, createFacebookClient, getDateRange, formatDateForFacebook } from '../facebook-ads';
 import { storage } from '../storage';
 import { getFacebookCredentials } from '../auth/facebook-oauth';
 
@@ -326,53 +326,61 @@ export class FacebookSyncService {
     try {
       this.isRunning = true;
       const today = new Date();
+      const todayString = today.toISOString().split('T')[0]; // YYYY-MM-DD format
       
       const dateRange = {
-        since: formatDateForFacebook(today),
-        until: formatDateForFacebook(today)
+        since: todayString,
+        until: todayString
       };
 
       console.log(`[FB-SYNC] Syncing today's data: ${dateRange.since}`);
 
-      const campaigns = await storage.getAllCampaigns();
-      const connectedCampaigns = [];
-
-      for (const campaign of campaigns) {
-        const settings = await storage.getCampaignSettings(campaign.campaignId);
-        if (settings?.fbCampaignId) {
-          connectedCampaigns.push({
-            internal: campaign,
-            facebook: settings.fbCampaignId
-          });
-        }
-      }
-
+      // Create Facebook client
       const facebookClient = await createFacebookClient('default');
       if (!facebookClient) {
-        throw new Error('Facebook client not available');
+        throw new Error('Failed to create Facebook client');
       }
 
-      for (const campaignPair of connectedCampaigns) {
-        try {
-          await facebookClient.syncCampaignData(
-            campaignPair.internal.campaignId,
-            campaignPair.facebook,
-            dateRange
-          );
-          console.log(`[FB-SYNC] Today sync completed for ${campaignPair.internal.campaignId}`);
-        } catch (error) {
-          console.error(`[FB-SYNC] Error syncing today data for ${campaignPair.internal.campaignId}:`, error);
-        }
+      // Test connection
+      const connectionOk = await facebookClient.testConnection();
+      if (!connectionOk) {
+        throw new Error('Facebook API connection failed');
       }
+
+      // Get today's account-level spend data
+      const todayData = await facebookClient.getAdAccountSpend(dateRange);
+      console.log(`[FB-SYNC] Today's data returned ${todayData.length} data points`);
+
+      // Store/update today's data for automatikblog-main campaign
+      for (const data of todayData) {
+        const adSpendData = {
+          campaignId: 'automatikblog-main',
+          date: data.date,
+          spend: data.spend.toString(),
+          impressions: data.impressions,
+          reach: data.reach,
+          clicks: data.clicks,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        await storage.upsertAdSpend(adSpendData);
+        console.log(`[FB-SYNC] Upserted today's spend: $${data.spend} for ${data.date}`);
+      }
+
+      const totalSpend = todayData.reduce((sum, data) => sum + data.spend, 0);
+      console.log(`[TODAY-SYNC] Completed for automatikblog-main. Today's spend: $${totalSpend}`);
+
     } catch (error) {
       console.error('[FB-SYNC] Error during today sync:', error);
+      throw error;
     } finally {
       this.isRunning = false;
     }
   }
 
   /**
-   * Sync yesterday's data specifically (more stable)
+   * Sync yesterday's data specifically (more stable data)
    */
   async syncYesterdayData(): Promise<void> {
     if (this.isRunning) {
@@ -384,29 +392,46 @@ export class FacebookSyncService {
       this.isRunning = true;
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayString = yesterday.toISOString().split('T')[0];
       
       const dateRange = {
-        since: formatDateForFacebook(yesterday),
-        until: formatDateForFacebook(yesterday)
+        since: yesterdayString,
+        until: yesterdayString
       };
 
-      const campaigns = await storage.getAllCampaigns();
-      const connectedCampaigns = campaigns.filter(c => c.facebookCampaignId);
-      
-      for (const campaign of connectedCampaigns) {
-        const facebookClient = await createFacebookClient('default');
-        if (facebookClient && campaign.facebookCampaignId) {
-          await facebookClient.syncCampaignData(
-            campaign.campaignId,
-            campaign.facebookCampaignId,
-            dateRange
-          );
-        }
+      console.log(`[FB-SYNC] Syncing yesterday's data: ${dateRange.since}`);
+
+      // Create Facebook client and sync yesterday's data
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        throw new Error('Failed to create Facebook client');
       }
-      
-      console.log(`[FB-SYNC] Yesterday sync completed for ${connectedCampaigns.length} campaigns`);
+
+      const yesterdayData = await facebookClient.getAdAccountSpend(dateRange);
+      console.log(`[FB-SYNC] Yesterday's data returned ${yesterdayData.length} data points`);
+
+      for (const data of yesterdayData) {
+        const adSpendData = {
+          campaignId: 'automatikblog-main',
+          date: data.date,
+          spend: data.spend.toString(),
+          impressions: data.impressions,
+          reach: data.reach,
+          clicks: data.clicks,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+
+        await storage.upsertAdSpend(adSpendData);
+        console.log(`[FB-SYNC] Upserted yesterday's spend: $${data.spend} for ${data.date}`);
+      }
+
+      const totalSpend = yesterdayData.reduce((sum, data) => sum + data.spend, 0);
+      console.log(`[YESTERDAY-SYNC] Completed for automatikblog-main. Yesterday's spend: $${totalSpend}`);
+
     } catch (error) {
       console.error('[FB-SYNC] Error during yesterday sync:', error);
+      throw error;
     } finally {
       this.isRunning = false;
     }
