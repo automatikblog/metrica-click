@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, Fragment } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,10 +44,10 @@ export default function ClickLogs() {
     queryKey: ["/api/campaigns"],
   });
 
-  // Fetch clicks with auto-refresh
-  const { data: clicks, isLoading, refetch } = useQuery<Click[]>({
+  // Fetch clicks with manual refresh control
+  const { data: clicks, isLoading, refetch, isFetching } = useQuery<Click[]>({
     queryKey: ["/api/clicks"],
-    refetchInterval: 10000, // Refresh every 10 seconds
+    refetchInterval: 30000, // Refresh every 30 seconds (less frequent)
   });
 
   // Filter clicks based on criteria
@@ -296,9 +296,14 @@ export default function ClickLogs() {
               Mostrando {filteredClicks.length} de {clicks?.length || 0} clicks
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => refetch()}>
-                <RefreshCw className={cn("h-4 w-4 mr-1")} />
-                Atualizar
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={cn("h-4 w-4 mr-1", isFetching && "animate-spin")} />
+                {isFetching ? "Atualizando..." : "Atualizar"}
               </Button>
               <Button variant="outline" size="sm" onClick={exportToCSV}>
                 <Download className="h-4 w-4 mr-1" />
@@ -335,165 +340,163 @@ export default function ClickLogs() {
                     </td>
                   </tr>
                 ) : (
-                  filteredClicks.map(click => {
+                  filteredClicks.flatMap(click => {
                     const device = getDeviceType(click.userAgent);
                     const DeviceIcon = device.icon;
                     const isExpanded = expandedRows[click.id];
 
-                    return (
-                      <Fragment key={click.id}>
-                        <tr className="border-b hover:bg-gray-50">
-                          <td className="p-4">
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                              {click.clickId.substring(0, 30)}...
-                            </code>
-                          </td>
-                          <td className="p-4">
-                            <span className="font-medium">{click.campaignId}</span>
-                          </td>
-                          <td className="p-4">
-                            <Badge variant={click.source ? "default" : "secondary"}>
-                              {click.source || "direct"}
+                    return [
+                      <tr key={`click-main-${click.id}`} className="border-b hover:bg-gray-50">
+                        <td className="p-4">
+                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {click.clickId.substring(0, 30)}...
+                          </code>
+                        </td>
+                        <td className="p-4">
+                          <span className="font-medium">{click.campaignId}</span>
+                        </td>
+                        <td className="p-4">
+                          <Badge variant={click.source ? "default" : "secondary"}>
+                            {click.source || "direct"}
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          {click.sub4 || click.sub1 ? (
+                            <div className="text-xs">
+                              {click.sub4 && <div className="font-medium truncate">{click.sub4}</div>}
+                              {click.sub1 && <div className="text-gray-500">ID: {click.sub1}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          {click.utmSource || click.utmMedium ? (
+                            <div className="text-xs">
+                              {click.utmSource && <div className="font-medium">{click.utmSource}</div>}
+                              {click.utmMedium && <div className="text-gray-500">{click.utmMedium}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <DeviceIcon className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm text-gray-600">{device.type}</span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-sm text-gray-600">
+                          {new Date(click.createdAt).toLocaleString("pt-BR")}
+                        </td>
+                        <td className="p-4">
+                          {click.convertedAt ? (
+                            <Badge className="bg-green-100 text-green-800">
+                              Convertido
                             </Badge>
-                          </td>
-                          <td className="p-4">
-                            {click.sub4 || click.sub1 ? (
-                              <div className="text-xs">
-                                {click.sub4 && <div className="font-medium truncate">{click.sub4}</div>}
-                                {click.sub1 && <div className="text-gray-500">ID: {click.sub1}</div>}
+                          ) : (
+                            <Badge variant="secondary">
+                              Ativo
+                            </Badge>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleRowExpansion(click.id)}
+                          >
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                        </td>
+                      </tr>,
+                      ...(isExpanded ? [
+                        <tr key={`click-expanded-${click.id}`} className="bg-gray-50">
+                          <td colSpan={9} className="p-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                              <div className="space-y-2">
+                                <div>
+                                  <strong>Click ID Completo:</strong>
+                                  <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs block mt-1">
+                                    {click.clickId}
+                                  </code>
+                                </div>
+                                {click.referrer && (
+                                  <div>
+                                    <strong>Referrer:</strong>
+                                    <a href={click.referrer} target="_blank" rel="noopener noreferrer" 
+                                       className="ml-2 text-blue-600 hover:underline inline-flex items-center gap-1">
+                                      {click.referrer}
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  </div>
+                                )}
+                                {click.userAgent && (
+                                  <div>
+                                    <strong>User Agent:</strong>
+                                    <span className="ml-2 text-gray-600 block">{click.userAgent}</span>
+                                  </div>
+                                )}
+                                {click.ipAddress && (
+                                  <div>
+                                    <strong>IP Address:</strong>
+                                    <span className="ml-2 text-gray-600">{click.ipAddress}</span>
+                                  </div>
+                                )}
+                                {(click.fbp || click.fbc) && (
+                                  <div>
+                                    <strong>Facebook Pixels:</strong>
+                                    <div className="ml-2 space-y-1">
+                                      {click.fbp && <div className="text-gray-600">_fbp: {click.fbp}</div>}
+                                      {click.fbc && <div className="text-gray-600">_fbc: {click.fbc}</div>}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            {click.utmSource || click.utmMedium ? (
-                              <div className="text-xs">
-                                {click.utmSource && <div className="font-medium">{click.utmSource}</div>}
-                                {click.utmMedium && <div className="text-gray-500">{click.utmMedium}</div>}
+                              <div className="space-y-2">
+                                {(click.sub1 || click.sub2 || click.sub3 || click.sub4 || click.sub5 || click.sub6 || click.sub7 || click.sub8) && (
+                                  <div>
+                                    <strong>Meta Ads Parâmetros:</strong>
+                                    <div className="ml-2 space-y-1 mt-1">
+                                      {click.sub1 && <div className="text-gray-600">Ad ID: {click.sub1}</div>}
+                                      {click.sub2 && <div className="text-gray-600">AdSet ID: {click.sub2}</div>}
+                                      {click.sub3 && <div className="text-gray-600">Campaign ID: {click.sub3}</div>}
+                                      {click.sub4 && <div className="text-gray-600">Ad Name: {click.sub4}</div>}
+                                      {click.sub5 && <div className="text-gray-600">AdSet Name: {click.sub5}</div>}
+                                      {click.sub6 && <div className="text-gray-600">Campaign Name: {click.sub6}</div>}
+                                      {click.sub7 && <div className="text-gray-600">Placement: {click.sub7}</div>}
+                                      {click.sub8 && <div className="text-gray-600">Site Source: {click.sub8}</div>}
+                                    </div>
+                                  </div>
+                                )}
+                                {(click.utmSource || click.utmMedium || click.utmCampaign || click.utmContent || click.utmTerm || click.utmId) && (
+                                  <div>
+                                    <strong>UTM Parâmetros:</strong>
+                                    <div className="ml-2 space-y-1 mt-1">
+                                      {click.utmSource && <div className="text-gray-600">Source: {click.utmSource}</div>}
+                                      {click.utmMedium && <div className="text-gray-600">Medium: {click.utmMedium}</div>}
+                                      {click.utmCampaign && <div className="text-gray-600">Campaign: {click.utmCampaign}</div>}
+                                      {click.utmContent && <div className="text-gray-600">Content: {click.utmContent}</div>}
+                                      {click.utmTerm && <div className="text-gray-600">Term: {click.utmTerm}</div>}
+                                      {click.utmId && <div className="text-gray-600">ID: {click.utmId}</div>}
+                                    </div>
+                                  </div>
+                                )}
+                                {click.convertedAt && (
+                                  <div>
+                                    <strong>Conversão:</strong>
+                                    <span className="ml-2 text-green-600">
+                                      {new Date(click.convertedAt).toLocaleString("pt-BR")}
+                                      {click.conversionValue && ` - R$ ${click.conversionValue}`}
+                                    </span>
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <span className="text-gray-400 text-xs">-</span>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-2">
-                              <DeviceIcon className="h-4 w-4 text-gray-500" />
-                              <span className="text-sm text-gray-600">{device.type}</span>
                             </div>
                           </td>
-                          <td className="p-4 text-sm text-gray-600">
-                            {new Date(click.createdAt).toLocaleString("pt-BR")}
-                          </td>
-                          <td className="p-4">
-                            {click.convertedAt ? (
-                              <Badge className="bg-green-100 text-green-800">
-                                Convertido
-                              </Badge>
-                            ) : (
-                              <Badge variant="secondary">
-                                Ativo
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => toggleRowExpansion(click.id)}
-                            >
-                              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                            </Button>
-                          </td>
                         </tr>
-                        {isExpanded && (
-                          <tr key={`expanded-${click.id}`} className="bg-gray-50">
-                            <td colSpan={9} className="p-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                <div className="space-y-2">
-                                  <div>
-                                    <strong>Click ID Completo:</strong>
-                                    <code className="ml-2 bg-gray-100 px-2 py-1 rounded text-xs block mt-1">
-                                      {click.clickId}
-                                    </code>
-                                  </div>
-                                  {click.referrer && (
-                                    <div>
-                                      <strong>Referrer:</strong>
-                                      <a href={click.referrer} target="_blank" rel="noopener noreferrer" 
-                                         className="ml-2 text-blue-600 hover:underline inline-flex items-center gap-1">
-                                        {click.referrer}
-                                        <ExternalLink className="h-3 w-3" />
-                                      </a>
-                                    </div>
-                                  )}
-                                  {click.userAgent && (
-                                    <div>
-                                      <strong>User Agent:</strong>
-                                      <span className="ml-2 text-gray-600 block">{click.userAgent}</span>
-                                    </div>
-                                  )}
-                                  {click.ipAddress && (
-                                    <div>
-                                      <strong>IP Address:</strong>
-                                      <span className="ml-2 text-gray-600">{click.ipAddress}</span>
-                                    </div>
-                                  )}
-                                  {(click.fbp || click.fbc) && (
-                                    <div>
-                                      <strong>Facebook Pixels:</strong>
-                                      <div className="ml-2 space-y-1">
-                                        {click.fbp && <div className="text-gray-600">_fbp: {click.fbp}</div>}
-                                        {click.fbc && <div className="text-gray-600">_fbc: {click.fbc}</div>}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="space-y-2">
-                                  {(click.sub1 || click.sub2 || click.sub3 || click.sub4 || click.sub5 || click.sub6 || click.sub7 || click.sub8) && (
-                                    <div>
-                                      <strong>Meta Ads Parâmetros:</strong>
-                                      <div className="ml-2 space-y-1 mt-1">
-                                        {click.sub1 && <div className="text-gray-600">Ad ID: {click.sub1}</div>}
-                                        {click.sub2 && <div className="text-gray-600">AdSet ID: {click.sub2}</div>}
-                                        {click.sub3 && <div className="text-gray-600">Campaign ID: {click.sub3}</div>}
-                                        {click.sub4 && <div className="text-gray-600">Ad Name: {click.sub4}</div>}
-                                        {click.sub5 && <div className="text-gray-600">AdSet Name: {click.sub5}</div>}
-                                        {click.sub6 && <div className="text-gray-600">Campaign Name: {click.sub6}</div>}
-                                        {click.sub7 && <div className="text-gray-600">Placement: {click.sub7}</div>}
-                                        {click.sub8 && <div className="text-gray-600">Site Source: {click.sub8}</div>}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {(click.utmSource || click.utmMedium || click.utmCampaign || click.utmContent || click.utmTerm || click.utmId) && (
-                                    <div>
-                                      <strong>UTM Parâmetros:</strong>
-                                      <div className="ml-2 space-y-1 mt-1">
-                                        {click.utmSource && <div className="text-gray-600">Source: {click.utmSource}</div>}
-                                        {click.utmMedium && <div className="text-gray-600">Medium: {click.utmMedium}</div>}
-                                        {click.utmCampaign && <div className="text-gray-600">Campaign: {click.utmCampaign}</div>}
-                                        {click.utmContent && <div className="text-gray-600">Content: {click.utmContent}</div>}
-                                        {click.utmTerm && <div className="text-gray-600">Term: {click.utmTerm}</div>}
-                                        {click.utmId && <div className="text-gray-600">ID: {click.utmId}</div>}
-                                      </div>
-                                    </div>
-                                  )}
-                                  {click.convertedAt && (
-                                    <div>
-                                      <strong>Conversão:</strong>
-                                      <span className="ml-2 text-green-600">
-                                        {new Date(click.convertedAt).toLocaleString("pt-BR")}
-                                        {click.conversionValue && ` - R$ ${click.conversionValue}`}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
+                      ] : [])
+                    ];
                   })
                 )}
               </tbody>
