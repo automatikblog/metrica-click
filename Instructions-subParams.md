@@ -66,6 +66,7 @@ ip_address, country, device_type, browser, created_at
 - `utm_campaign` = ID da campanha
 - `utm_content` = Conteúdo do anúncio
 - `utm_term` = Termo/palavra-chave
+- `utm_id` = ID único da campanha
 
 ---
 
@@ -94,7 +95,7 @@ if (trafficSource) params.append('tsource', trafficSource);
 ```sql
 -- PRECISAMOS ADICIONAR:
 sub1, sub2, sub3, sub4, sub5, sub6, sub7, sub8,
-utm_source, utm_medium, utm_campaign, utm_content, utm_term
+utm_source, utm_medium, utm_campaign, utm_content, utm_term, utm_id
 ```
 
 ---
@@ -155,6 +156,7 @@ ALTER TABLE clicks ADD COLUMN utm_medium TEXT;
 ALTER TABLE clicks ADD COLUMN utm_campaign TEXT;
 ALTER TABLE clicks ADD COLUMN utm_content TEXT;
 ALTER TABLE clicks ADD COLUMN utm_term TEXT;
+ALTER TABLE clicks ADD COLUMN utm_id TEXT;
 ```
 
 ### 4.2 FASE 2: Atualização do Schema Drizzle
@@ -180,6 +182,7 @@ export const clicks = pgTable("clicks", {
   utmCampaign: text("utm_campaign"),
   utmContent: text("utm_content"),
   utmTerm: text("utm_term"),
+  utmId: text("utm_id"),
 });
 ```
 
@@ -214,6 +217,7 @@ function requestClickId(campaignId, metaCookies, trafficSource, urlParams, retry
   if (urlParams.utm_campaign) params.append('utm_campaign', urlParams.utm_campaign);
   if (urlParams.utm_content) params.append('utm_content', urlParams.utm_content);
   if (urlParams.utm_term) params.append('utm_term', urlParams.utm_term);
+  if (urlParams.utm_id) params.append('utm_id', urlParams.utm_id);
 }
 ```
 
@@ -257,6 +261,7 @@ const clickData = {
   utmCampaign: req.query.utm_campaign as string || undefined,
   utmContent: req.query.utm_content as string || undefined,
   utmTerm: req.query.utm_term as string || undefined,
+  utmId: req.query.utm_id as string || undefined,
   
   // ... resto dos campos existentes
 };
@@ -326,7 +331,10 @@ sub7=Facebook_Mobile_Feed&
 sub8=fb&
 utm_source=facebook&
 utm_medium=paid&
-utm_campaign=120221307912350485
+utm_campaign=120221307912350485&
+utm_content=120221436830730485&
+utm_term=120221307912330485&
+utm_id=120221307912350485
 ```
 
 **Verificações:**
