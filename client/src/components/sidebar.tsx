@@ -8,6 +8,7 @@ export function Sidebar() {
     { name: "Dashboard", href: "/", icon: "fas fa-tachometer-alt" },
     { name: "Campaigns", href: "/campaigns", icon: "fas fa-bullhorn" },
     { name: "Analytics", href: "/analytics", icon: "fas fa-chart-bar" },
+    { name: "Geografia", href: "/geography", icon: "fas fa-globe-americas" },
     { name: "Integration", href: "/integration", icon: "fas fa-code" },
     { name: "Webhook", href: "/webhook", icon: "fas fa-link" },
     { name: "Logs Conversão", href: "/conversion-logs", icon: "fas fa-list-alt" },

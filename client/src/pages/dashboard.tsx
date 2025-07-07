@@ -1,6 +1,8 @@
 import { StatsCards } from "@/components/stats-cards";
 import { RecentActivity } from "@/components/recent-activity";
 import { DateRangeSelector, type DateRange } from "@/components/date-range-selector";
+import { CountryPerformanceChart, DevicePerformanceChart } from "@/components/geography-charts";
+import { useGeography } from "@/hooks/use-geography";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,9 @@ export default function Dashboard() {
     to: new Date(),
     preset: "30d"
   });
+
+  // Load geographic data
+  const { data: geoData, isLoading: geoLoading } = useGeography({ dateRange });
 
   const generateScriptUrl = () => {
     const baseUrl = window.location.origin;
@@ -71,6 +76,17 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto p-6">
         <StatsCards dateRange={dateRange} />
+
+        {/* Geographic Analytics Section */}
+        {geoData && !geoLoading && (geoData.countries.length > 0 || geoData.devices.length > 0) && (
+          <div className="mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Analytics Geográficos</h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <CountryPerformanceChart data={geoData.countries} />
+              <DevicePerformanceChart data={geoData.devices} />
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Chart Section */}

@@ -21,8 +21,48 @@ import {
   type InsertConversion,
   type InsertCampaignSettings
 } from "@shared/schema";
-import { eq, sql, gte, lte, and } from "drizzle-orm";
+import { eq, sql, gte, lte, and, desc } from "drizzle-orm";
 import { db } from "./db";
+
+// Geographic Analytics Types
+export interface CountryStats {
+  country: string;
+  countryCode: string;
+  clickCount: number;
+  conversionCount: number;
+  conversionRate: number;
+}
+
+export interface RegionStats {
+  region: string;
+  country: string;
+  clickCount: number;
+  conversionCount: number;
+  conversionRate: number;
+}
+
+export interface CityStats {
+  city: string;
+  region: string;
+  country: string;
+  clickCount: number;
+  conversionCount: number;
+  conversionRate: number;
+}
+
+export interface DeviceStats {
+  deviceType: string;
+  clickCount: number;
+  conversionCount: number;
+  conversionRate: number;
+}
+
+export interface TimezoneStats {
+  timezone: string;
+  clickCount: number;
+  conversionCount: number;
+  conversionRate: number;
+}
 
 export interface IStorage {
   // Users
@@ -67,6 +107,14 @@ export interface IStorage {
   getCampaignSettings(campaignId: string): Promise<CampaignSettings | undefined>;
   createCampaignSettings(settings: InsertCampaignSettings): Promise<CampaignSettings>;
   updateCampaignSettings(campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined>;
+  
+  // Geographic Analytics
+  getClicksGroupedByCountry(startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
+  getClicksGroupedByRegion(startDate?: Date, endDate?: Date): Promise<RegionStats[]>;
+  getClicksGroupedByCity(startDate?: Date, endDate?: Date): Promise<CityStats[]>;
+  getClicksGroupedByDevice(startDate?: Date, endDate?: Date): Promise<DeviceStats[]>;
+  getClicksGroupedByTimezone(startDate?: Date, endDate?: Date): Promise<TimezoneStats[]>;
+  getTopCountries(limit?: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -440,6 +488,150 @@ export class DatabaseStorage implements IStorage {
       .where(eq(campaignSettings.campaignId, campaignId))
       .returning();
     return settings || undefined;
+  }
+
+  // Geographic Analytics Implementation
+  async getClicksGroupedByCountry(startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(clicks.createdAt, startDate));
+    if (endDate) conditions.push(lte(clicks.createdAt, endDate));
+
+    const results = await db
+      .select({
+        country: clicks.country,
+        countryCode: clicks.countryCode,
+        clickCount: sql<number>`count(*)`.as('clickCount'),
+        conversionCount: sql<number>`count(${clicks.conversionValue})`.as('conversionCount')
+      })
+      .from(clicks)
+      .where(and(...conditions))
+      .groupBy(clicks.country, clicks.countryCode)
+      .orderBy(desc(sql`count(*)`));
+
+    return results
+      .filter(r => r.country && r.countryCode)
+      .map(r => ({
+        country: r.country!,
+        countryCode: r.countryCode!,
+        clickCount: r.clickCount,
+        conversionCount: r.conversionCount,
+        conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
+      }));
+  }
+
+  async getClicksGroupedByRegion(startDate?: Date, endDate?: Date): Promise<RegionStats[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(clicks.createdAt, startDate));
+    if (endDate) conditions.push(lte(clicks.createdAt, endDate));
+
+    const results = await db
+      .select({
+        region: clicks.region,
+        country: clicks.country,
+        clickCount: sql<number>`count(*)`.as('clickCount'),
+        conversionCount: sql<number>`count(${clicks.conversionValue})`.as('conversionCount')
+      })
+      .from(clicks)
+      .where(and(...conditions))
+      .groupBy(clicks.region, clicks.country)
+      .orderBy(desc(sql`count(*)`));
+
+    return results
+      .filter(r => r.region && r.country)
+      .map(r => ({
+        region: r.region!,
+        country: r.country!,
+        clickCount: r.clickCount,
+        conversionCount: r.conversionCount,
+        conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
+      }));
+  }
+
+  async getClicksGroupedByCity(startDate?: Date, endDate?: Date): Promise<CityStats[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(clicks.createdAt, startDate));
+    if (endDate) conditions.push(lte(clicks.createdAt, endDate));
+
+    const results = await db
+      .select({
+        city: clicks.city,
+        region: clicks.region,
+        country: clicks.country,
+        clickCount: sql<number>`count(*)`.as('clickCount'),
+        conversionCount: sql<number>`count(${clicks.conversionValue})`.as('conversionCount')
+      })
+      .from(clicks)
+      .where(and(...conditions))
+      .groupBy(clicks.city, clicks.region, clicks.country)
+      .orderBy(desc(sql`count(*)`));
+
+    return results
+      .filter(r => r.city && r.region && r.country)
+      .map(r => ({
+        city: r.city!,
+        region: r.region!,
+        country: r.country!,
+        clickCount: r.clickCount,
+        conversionCount: r.conversionCount,
+        conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
+      }));
+  }
+
+  async getClicksGroupedByDevice(startDate?: Date, endDate?: Date): Promise<DeviceStats[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(clicks.createdAt, startDate));
+    if (endDate) conditions.push(lte(clicks.createdAt, endDate));
+
+    const results = await db
+      .select({
+        deviceType: clicks.deviceType,
+        clickCount: sql<number>`count(*)`.as('clickCount'),
+        conversionCount: sql<number>`count(${clicks.conversionValue})`.as('conversionCount')
+      })
+      .from(clicks)
+      .where(and(...conditions))
+      .groupBy(clicks.deviceType)
+      .orderBy(desc(sql`count(*)`));
+
+    return results
+      .filter(r => r.deviceType)
+      .map(r => ({
+        deviceType: r.deviceType!,
+        clickCount: r.clickCount,
+        conversionCount: r.conversionCount,
+        conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
+      }));
+  }
+
+  async getClicksGroupedByTimezone(startDate?: Date, endDate?: Date): Promise<TimezoneStats[]> {
+    const conditions = [];
+    if (startDate) conditions.push(gte(clicks.createdAt, startDate));
+    if (endDate) conditions.push(lte(clicks.createdAt, endDate));
+
+    const results = await db
+      .select({
+        timezone: clicks.timezone,
+        clickCount: sql<number>`count(*)`.as('clickCount'),
+        conversionCount: sql<number>`count(${clicks.conversionValue})`.as('conversionCount')
+      })
+      .from(clicks)
+      .where(and(...conditions))
+      .groupBy(clicks.timezone)
+      .orderBy(desc(sql`count(*)`));
+
+    return results
+      .filter(r => r.timezone)
+      .map(r => ({
+        timezone: r.timezone!,
+        clickCount: r.clickCount,
+        conversionCount: r.conversionCount,
+        conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
+      }));
+  }
+
+  async getTopCountries(limit: number = 10, startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
+    const countryStats = await this.getClicksGroupedByCountry(startDate, endDate);
+    return countryStats.slice(0, limit);
   }
 }
 

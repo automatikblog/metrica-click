@@ -12,6 +12,8 @@ import { eq, desc } from "drizzle-orm";
 import { adSpend } from "@shared/schema";
 import { configureFacebookAuth, initiateFacebookAuth, handleFacebookCallback, handleFacebookSuccess, handleFacebookError, hasValidFacebookCredentials, getFacebookAdAccounts } from "./auth/facebook-oauth";
 import { extractSessionId, findClickBySessionId, normalizeConversionData, updateCampaignMetrics } from "./webhook-utils";
+import { getGeoLocation } from "./services/geolocation";
+import { parseUserAgent } from "./services/user-agent-parser";
 import passport from "passport";
 import session from "express-session";
 
@@ -557,7 +559,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const timestamp = Date.now();
       const clickId = `mc_${campaignID}_${timestamp}`;
 
-      // Create click record
+      // Get client IP and User-Agent
+      const clientIp = req.ip || req.connection.remoteAddress || '';
+      const userAgent = req.headers["user-agent"] || '';
+      
+      // Get geolocation data
+      console.log(`[GEO] Getting geolocation for IP: ${clientIp}`);
+      const geoData = await getGeoLocation(clientIp);
+      
+      // Parse user agent
+      console.log(`[UA] Parsing user agent: ${userAgent.substring(0, 50)}...`);
+      const deviceInfo = parseUserAgent(userAgent);
+      
+      // Create enriched click record
       const clickData = {
         clickId,
         campaignId: campaignID,
@@ -565,8 +579,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         referrer: referrer as string || undefined,
         fbp: _fbp as string || undefined,
         fbc: _fbc as string || undefined,
-        userAgent: req.headers["user-agent"] || undefined,
-        ipAddress: req.ip || req.connection.remoteAddress || undefined,
+        userAgent,
+        ipAddress: clientIp,
+        
+        // Geographic data
+        country: geoData?.country,
+        countryCode: geoData?.countryCode,
+        region: geoData?.region,
+        city: geoData?.city,
+        postalCode: geoData?.postalCode,
+        timezone: geoData?.timezone,
+        latitude: geoData?.latitude ? geoData.latitude.toString() : undefined,
+        longitude: geoData?.longitude ? geoData.longitude.toString() : undefined,
+        isp: geoData?.isp,
+        
+        // Device data
+        deviceType: deviceInfo.deviceType,
+        operatingSystem: deviceInfo.operatingSystem,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        connectionType: geoData?.mobile ? 'mobile' : 'broadband',
+        isProxy: geoData?.proxy || false,
+        isCrawler: deviceInfo.isCrawler
       };
 
       await storage.createClick(clickData);
@@ -597,12 +631,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Click not found" });
       }
 
-      // Create page view record
+      // Get client IP and User-Agent for page view
+      const clientIp = req.ip || req.connection.remoteAddress || '';
+      const userAgent = req.headers["user-agent"] || '';
+      
+      // Get geolocation data
+      const geoData = await getGeoLocation(clientIp);
+      
+      // Parse user agent
+      const deviceInfo = parseUserAgent(userAgent);
+      
+      // Create enriched page view record
       const pageViewData = {
         clickId: clickid as string,
         referrer: referrer as string || undefined,
-        userAgent: req.headers["user-agent"] || undefined,
-        ipAddress: req.ip || req.connection.remoteAddress || undefined,
+        userAgent,
+        ipAddress: clientIp,
+        
+        // Geographic data
+        country: geoData?.country,
+        countryCode: geoData?.countryCode,
+        region: geoData?.region,
+        city: geoData?.city,
+        postalCode: geoData?.postalCode,
+        timezone: geoData?.timezone,
+        latitude: geoData?.latitude ? geoData.latitude.toString() : undefined,
+        longitude: geoData?.longitude ? geoData.longitude.toString() : undefined,
+        isp: geoData?.isp,
+        
+        // Device data
+        deviceType: deviceInfo.deviceType,
+        operatingSystem: deviceInfo.operatingSystem,
+        browser: deviceInfo.browser,
+        browserVersion: deviceInfo.browserVersion,
+        connectionType: geoData?.mobile ? 'mobile' : 'broadband',
+        isProxy: geoData?.proxy || false,
+        isCrawler: deviceInfo.isCrawler
       };
 
       await storage.createPageView(pageViewData);
@@ -613,6 +677,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Error in /view endpoint:", error);
       console.error("Click ID:", req.query.clickid);
       console.error("Request params:", req.query);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Geographic Analytics endpoints
+  app.get("/api/analytics/geography", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const [countryStats, regionStats, deviceStats, timezoneStats] = await Promise.all([
+        storage.getClicksGroupedByCountry(start, end),
+        storage.getClicksGroupedByRegion(start, end),
+        storage.getClicksGroupedByDevice(start, end),
+        storage.getClicksGroupedByTimezone(start, end)
+      ]);
+      
+      res.json({
+        countries: countryStats,
+        regions: regionStats,
+        devices: deviceStats,
+        timezones: timezoneStats
+      });
+    } catch (error) {
+      console.error("Error fetching geographic analytics:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/analytics/top-countries", async (req, res) => {
+    try {
+      const { startDate, endDate, limit = 10 } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const topCountries = await storage.getTopCountries(parseInt(limit as string), start, end);
+      
+      res.json(topCountries);
+    } catch (error) {
+      console.error("Error fetching top countries:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.get("/api/analytics/device-performance", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const deviceStats = await storage.getClicksGroupedByDevice(start, end);
+      
+      res.json(deviceStats);
+    } catch (error) {
+      console.error("Error fetching device performance:", error);
       res.status(500).json({ error: "Internal server error" });
     }
   });

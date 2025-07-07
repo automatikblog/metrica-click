@@ -25,6 +25,29 @@ export const clicks = pgTable("clicks", {
   ipAddress: text("ip_address"),
   conversionValue: decimal("conversion_value", { precision: 10, scale: 2 }),
   convertedAt: timestamp("converted_at"),
+  
+  // Geographic data
+  country: text("country"),
+  countryCode: text("country_code"),
+  region: text("region"),
+  city: text("city"),
+  postalCode: text("postal_code"),
+  timezone: text("timezone"),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }),
+  
+  // Device and browser data
+  deviceType: text("device_type"),
+  operatingSystem: text("operating_system"),
+  browser: text("browser"),
+  browserVersion: text("browser_version"),
+  
+  // ISP and connection data
+  isp: text("isp"),
+  connectionType: text("connection_type"),
+  isProxy: boolean("is_proxy"),
+  isCrawler: boolean("is_crawler"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -34,6 +57,29 @@ export const pageViews = pgTable("page_views", {
   referrer: text("referrer"),
   userAgent: text("user_agent"),
   ipAddress: text("ip_address"),
+  
+  // Geographic data
+  country: text("country"),
+  countryCode: text("country_code"),
+  region: text("region"),
+  city: text("city"),
+  postalCode: text("postal_code"),
+  timezone: text("timezone"),
+  latitude: decimal("latitude", { precision: 10, scale: 8 }),
+  longitude: decimal("longitude", { precision: 11, scale: 8 }),
+  
+  // Device and browser data
+  deviceType: text("device_type"),
+  operatingSystem: text("operating_system"),
+  browser: text("browser"),
+  browserVersion: text("browser_version"),
+  
+  // ISP and connection data
+  isp: text("isp"),
+  connectionType: text("connection_type"),
+  isProxy: boolean("is_proxy"),
+  isCrawler: boolean("is_crawler"),
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
