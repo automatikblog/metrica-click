@@ -47,6 +47,12 @@ export default function Analytics() {
     }).format(value);
   };
 
+  // Helper function to check if date is within range
+  const isDateInRange = (dateStr: string, from: Date, to: Date) => {
+    const date = new Date(dateStr);
+    return date >= from && date <= to;
+  };
+
   const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ dateRange });
 
   const { data: clicks, isLoading: clicksLoading } = useQuery<Click[]>({
@@ -72,13 +78,18 @@ export default function Analytics() {
     
     // 1. Conversões rastreadas (com clickId que corresponde aos clicks desta campanha)
     const trackedConversions = conversions?.filter(conv => 
-      conv.clickId && clickIds.includes(conv.clickId)
+      conv.clickId && 
+      clickIds.includes(conv.clickId) &&
+      isDateInRange(conv.createdAt, dateRange.from!, dateRange.to!)
     ) || [];
     
     // 2. Para conversões diretas (sem clickId), vamos atribuir à campanha principal por enquanto
     // Esta é uma implementação temporária - conversões diretas serão atribuídas à primeira campanha ativa
     const isMainCampaign = campaign.campaignId === 'automatikblog-main';
-    const directConversions = isMainCampaign ? (conversions?.filter(conv => !conv.clickId) || []) : [];
+    const directConversions = isMainCampaign ? (conversions?.filter(conv => 
+      !conv.clickId && 
+      isDateInRange(conv.createdAt, dateRange.from!, dateRange.to!)
+    ) || []) : [];
     
     // Combinar todas as conversões desta campanha
     const allCampaignConversions = [...trackedConversions, ...directConversions];
