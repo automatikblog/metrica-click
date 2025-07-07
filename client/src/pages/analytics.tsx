@@ -39,6 +39,14 @@ export default function Analytics() {
     preset: "30d"
   });
 
+  // Helper function to format currency in BRL
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
+  };
+
   const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ dateRange });
 
   const { data: clicks, isLoading: clicksLoading } = useQuery<Click[]>({
@@ -49,23 +57,47 @@ export default function Analytics() {
     queryKey: ["/api/page-views"],
   });
 
-  const isLoading = campaignsLoading || clicksLoading || pageViewsLoading;
+  const { data: conversions, isLoading: conversionsLoading } = useQuery<Conversion[]>({
+    queryKey: ["/api/conversions"],
+  });
+
+  const isLoading = campaignsLoading || clicksLoading || pageViewsLoading || conversionsLoading;
 
   // Calculate campaign analytics
   const campaignAnalytics: CampaignAnalytics[] = campaigns?.map(campaign => {
     const campaignClicks = clicks?.filter(c => c.campaignId === campaign.campaignId) || [];
-    const conversions = campaignClicks.filter(c => c.convertedAt !== null);
-    const revenue = conversions.reduce((sum, c) => sum + parseFloat(c.conversionValue || "0"), 0);
+    
+    // NOVA LÓGICA: Buscar conversões de múltiplas fontes
+    const clickIds = campaignClicks.map(c => c.clickId);
+    
+    // 1. Conversões rastreadas (com clickId que corresponde aos clicks desta campanha)
+    const trackedConversions = conversions?.filter(conv => 
+      conv.clickId && clickIds.includes(conv.clickId)
+    ) || [];
+    
+    // 2. Para conversões diretas (sem clickId), vamos atribuir à campanha principal por enquanto
+    // Esta é uma implementação temporária - conversões diretas serão atribuídas à primeira campanha ativa
+    const isMainCampaign = campaign.campaignId === 'automatikblog-main';
+    const directConversions = isMainCampaign ? (conversions?.filter(conv => !conv.clickId) || []) : [];
+    
+    // Combinar todas as conversões desta campanha
+    const allCampaignConversions = [...trackedConversions, ...directConversions];
+    
+    // CÁLCULO CORRETO DO REVENUE
+    const revenue = allCampaignConversions.reduce((sum, conv) => 
+      sum + parseFloat(conv.value || "0"), 0
+    );
+    
     const cost = parseFloat(campaign.totalSpend || "0");
     const roas = cost > 0 ? revenue / cost : 0;
-    const cpa = conversions.length > 0 ? cost / conversions.length : 0;
+    const cpa = allCampaignConversions.length > 0 ? cost / allCampaignConversions.length : 0;
     const roi = cost > 0 ? ((revenue - cost) / cost) * 100 : 0;
-    const conversionRate = campaignClicks.length > 0 ? (conversions.length / campaignClicks.length) * 100 : 0;
+    const conversionRate = campaignClicks.length > 0 ? (trackedConversions.length / campaignClicks.length) * 100 : 0;
 
     return {
       campaign,
       clicks: campaignClicks,
-      conversions: [],
+      conversions: allCampaignConversions,
       adSpend: [],
       revenue,
       cost,
@@ -133,7 +165,7 @@ export default function Analytics() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totals.revenue.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totals.revenue)}</div>
             <p className="text-xs text-muted-foreground">
               From all campaigns
             </p>
@@ -148,7 +180,7 @@ export default function Analytics() {
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totals.cost.toFixed(2)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(totals.cost)}</div>
             <p className="text-xs text-muted-foreground">
               Across all platforms
             </p>
@@ -218,14 +250,14 @@ export default function Analytics() {
                         <div className="text-sm text-gray-500">{ca.clicks.length} clicks</div>
                       </div>
                     </td>
-                    <td className="text-right p-2">${ca.cost.toFixed(2)}</td>
-                    <td className="text-right p-2">${ca.revenue.toFixed(2)}</td>
+                    <td className="text-right p-2">{formatCurrency(ca.cost)}</td>
+                    <td className="text-right p-2">{formatCurrency(ca.revenue)}</td>
                     <td className="text-right p-2">
                       <span className={ca.roas >= 1 ? "text-green-600" : "text-red-600"}>
                         {ca.roas.toFixed(2)}x
                       </span>
                     </td>
-                    <td className="text-right p-2">${ca.cpa.toFixed(2)}</td>
+                    <td className="text-right p-2">{formatCurrency(ca.cpa)}</td>
                     <td className="text-right p-2">
                       <div className="flex items-center justify-end gap-1">
                         {ca.roi > 0 ? (
