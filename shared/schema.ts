@@ -59,10 +59,10 @@ export const adSpend = pgTable("ad_spend", {
 // Conversion tracking
 export const conversions = pgTable("conversions", {
   id: serial("id").primaryKey(),
-  clickId: text("click_id").notNull(),
+  clickId: text("click_id"), // Allow null for direct conversions (Hotmart without tracking)
   conversionType: text("conversion_type").notNull(), // 'purchase', 'lead', 'signup', etc.
   value: decimal("value", { precision: 10, scale: 2 }),
-  currency: text("currency").default("USD"),
+  currency: text("currency").default("BRL"), // Changed default to BRL for Brazilian market
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

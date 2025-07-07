@@ -744,21 +744,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = extractSessionId(req.body);
       console.log(`[WEBHOOK-${webhookId}] Extracted session ID: ${sessionId}`);
       
-      // 2. Validate and find click record
+      // 2. Validate and find click record (might be null for direct conversions)
       const click = await findClickBySessionId(sessionId);
-      console.log(`[WEBHOOK-${webhookId}] Found click record: ${click.clickId} for campaign: ${click.campaignId}`);
       
-      // 3. Check for duplicate conversion
-      const existingConversions = await storage.getConversionsByClickId(click.clickId);
-      if (existingConversions.length > 0) {
-        console.log(`[WEBHOOK-${webhookId}] Duplicate conversion detected, returning existing conversion`);
-        return res.json({ 
-          success: true, 
-          conversionId: existingConversions[0].id,
-          clickId: click.clickId,
-          message: 'Conversion already exists',
-          duplicate: true
-        });
+      if (click) {
+        console.log(`[WEBHOOK-${webhookId}] Found click record: ${click.clickId} for campaign: ${click.campaignId}`);
+        
+        // 3. Check for duplicate conversion
+        const existingConversions = await storage.getConversionsByClickId(click.clickId);
+        if (existingConversions.length > 0) {
+          console.log(`[WEBHOOK-${webhookId}] Duplicate conversion detected, returning existing conversion`);
+          return res.json({ 
+            success: true, 
+            conversionId: existingConversions[0].id,
+            clickId: click.clickId,
+            message: 'Conversion already exists',
+            duplicate: true
+          });
+        }
+      } else {
+        console.log(`[WEBHOOK-${webhookId}] No click record found - processing as direct conversion`);
       }
       
       // 4. Normalize conversion data
@@ -769,9 +774,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversion = await storage.createConversion(conversionData);
       console.log(`[WEBHOOK-${webhookId}] Created conversion: ${conversion.id}`);
       
-      // 6. Update campaign metrics
-      await updateCampaignMetrics(click.campaignId, conversionData);
-      console.log(`[WEBHOOK-${webhookId}] Updated campaign metrics for: ${click.campaignId}`);
+      // 6. Update campaign metrics (if we have a click/campaign)
+      if (click) {
+        await updateCampaignMetrics(click.campaignId, conversionData);
+        console.log(`[WEBHOOK-${webhookId}] Updated campaign metrics for: ${click.campaignId}`);
+      }
       
       // 7. Return success response
       const processingTime = Date.now() - startTime;
@@ -780,8 +787,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ 
         success: true, 
         conversionId: conversion.id,
-        clickId: click.clickId,
-        campaignId: click.campaignId,
+        clickId: click ? click.clickId : null,
+        campaignId: click ? click.campaignId : null,
         processingTime: `${processingTime}ms`,
         webhookId
       });
