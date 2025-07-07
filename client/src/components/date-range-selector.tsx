@@ -33,14 +33,21 @@ const DATE_PRESETS = {
   today: { 
     days: 0, 
     label: "Hoje",
-    getValue: () => ({ from: new Date(), to: new Date() })
+    getValue: () => {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59, 999);
+      return { from: startOfDay, to: endOfDay };
+    }
   },
   yesterday: { 
     days: 1, 
     label: "Ontem",
     getValue: () => {
       const yesterday = subDays(new Date(), 1);
-      return { from: yesterday, to: yesterday };
+      const startOfDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 0, 0, 0, 0);
+      const endOfDay = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999);
+      return { from: startOfDay, to: endOfDay };
     }
   },
   "7d": { 

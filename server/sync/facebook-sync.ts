@@ -57,9 +57,9 @@ export class FacebookSyncService {
       timezone: 'America/New_York'
     });
 
-    // Today's data sync every hour during business hours (8 AM - 10 PM)
-    cron.schedule('0 8-22 * * *', () => {
-      console.log('[FB-SYNC] Starting hourly today data sync...');
+    // Today's data sync every 30 minutes during business hours (8 AM - 10 PM)
+    cron.schedule('*/30 8-22 * * *', () => {
+      console.log('[FB-SYNC] Starting 30-min today data sync...');
       this.syncTodayData();
     }, {
       timezone: 'America/New_York'
@@ -69,7 +69,7 @@ export class FacebookSyncService {
     console.log('[FB-SYNC] - Full sync: 2:00 AM EST daily');
     console.log('[FB-SYNC] - Incremental: Every 4 hours');
     console.log('[FB-SYNC] - Yesterday data: 10:00 AM EST daily');
-    console.log('[FB-SYNC] - Today data: Every hour 8 AM - 10 PM EST');
+    console.log('[FB-SYNC] - Today data: Every 30 minutes 8 AM - 10 PM EST');
   }
 
   /**
