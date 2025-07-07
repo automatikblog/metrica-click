@@ -350,7 +350,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllClicks(): Promise<Click[]> {
-    return await db.select().from(clicks);
+    return await db.select().from(clicks).orderBy(desc(clicks.createdAt));
   }
 
   async updateClick(clickId: string, updates: Partial<Click>): Promise<Click | undefined> {

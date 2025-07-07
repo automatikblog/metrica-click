@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -293,8 +293,8 @@ export default function ClickLogs() {
                     const isExpanded = expandedRows[click.id];
 
                     return (
-                      <>
-                        <tr key={click.id} className="border-b hover:bg-gray-50">
+                      <Fragment key={click.id}>
+                        <tr className="border-b hover:bg-gray-50">
                           <td className="p-4">
                             <code className="text-xs bg-gray-100 px-2 py-1 rounded">
                               {click.clickId.substring(0, 30)}...
@@ -339,7 +339,7 @@ export default function ClickLogs() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr className="bg-gray-50">
+                          <tr key={`expanded-${click.id}`} className="bg-gray-50">
                             <td colSpan={7} className="p-4">
                               <div className="space-y-2 text-sm">
                                 <div>
@@ -390,7 +390,7 @@ export default function ClickLogs() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })
                 )}
