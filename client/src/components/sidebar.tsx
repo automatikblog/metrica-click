@@ -9,6 +9,7 @@ export function Sidebar() {
     { name: "Campaigns", href: "/campaigns", icon: "fas fa-bullhorn" },
     { name: "Analytics", href: "/analytics", icon: "fas fa-chart-bar" },
     { name: "Integration", href: "/integration", icon: "fas fa-code" },
+    { name: "Webhook", href: "/webhook", icon: "fas fa-link" },
     { name: "Facebook Ads", href: "/facebook", icon: "fab fa-facebook" },
   ];
 

@@ -9,6 +9,7 @@ import Campaigns from "@/pages/campaigns";
 import Analytics from "@/pages/analytics";
 import Integration from "@/pages/integration";
 import FacebookSettings from "@/pages/facebook-settings";
+import WebhookIntegration from "@/pages/webhook-integration";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/integration" component={Integration} />
+      <Route path="/webhook" component={WebhookIntegration} />
       <Route path="/facebook" component={FacebookSettings} />
       <Route component={NotFound} />
     </Switch>
