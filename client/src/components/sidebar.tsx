@@ -10,6 +10,7 @@ export function Sidebar() {
     { name: "Analytics", href: "/analytics", icon: "fas fa-chart-bar" },
     { name: "Integration", href: "/integration", icon: "fas fa-code" },
     { name: "Webhook", href: "/webhook", icon: "fas fa-link" },
+    { name: "Logs Conversão", href: "/conversion-logs", icon: "fas fa-list-alt" },
     { name: "Facebook Ads", href: "/facebook", icon: "fab fa-facebook" },
   ];
 

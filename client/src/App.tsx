@@ -10,6 +10,7 @@ import Analytics from "@/pages/analytics";
 import Integration from "@/pages/integration";
 import FacebookSettings from "@/pages/facebook-settings";
 import WebhookIntegration from "@/pages/webhook-integration";
+import ConversionLogs from "@/pages/conversion-logs";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/integration" component={Integration} />
       <Route path="/webhook" component={WebhookIntegration} />
+      <Route path="/conversion-logs" component={ConversionLogs} />
       <Route path="/facebook" component={FacebookSettings} />
       <Route component={NotFound} />
     </Switch>
