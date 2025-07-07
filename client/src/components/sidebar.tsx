@@ -11,6 +11,7 @@ export function Sidebar() {
     { name: "Integration", href: "/integration", icon: "fas fa-code" },
     { name: "Webhook", href: "/webhook", icon: "fas fa-link" },
     { name: "Logs Conversão", href: "/conversion-logs", icon: "fas fa-list-alt" },
+    { name: "Logs de Clicks", href: "/click-logs", icon: "fas fa-mouse-pointer" },
     { name: "Facebook Ads", href: "/facebook", icon: "fab fa-facebook" },
   ];
 
