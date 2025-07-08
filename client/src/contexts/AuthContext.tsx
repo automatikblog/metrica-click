@@ -50,6 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryKey: ['/api/auth/user'],
     retry: false,
     enabled: true,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   useEffect(() => {
@@ -83,9 +85,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(data.user);
         setTenant(data.tenant);
         
-        // Invalidar cache e refetch dados
+        // Invalidar cache e refetch dados após um pequeno delay para permitir que o cookie seja definido
         queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
-        await refetch();
+        setTimeout(async () => {
+          await refetch();
+        }, 100);
       }
     } catch (error) {
       console.error('Login error:', error);

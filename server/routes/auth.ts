@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authService } from "../services/auth.service";
+import { storage } from "../storage";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { z } from "zod";
 
@@ -78,7 +79,7 @@ router.post('/logout', (req, res) => {
 router.get('/user', requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const user = req.user;
-    const tenant = await authService.authService.storage.getTenant(user.tenantId);
+    const tenant = await storage.getTenant(user.tenantId);
     
     res.json({
       user: {
