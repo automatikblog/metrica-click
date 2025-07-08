@@ -317,6 +317,26 @@ export class FacebookSyncService {
   /**
    * Sync today's data specifically (for real-time updates)
    */
+  /**
+   * Retry mechanism for upsert operations
+   */
+  async upsertAdSpendWithRetry(adSpendData: any, maxRetries: number = 3): Promise<void> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await storage.upsertAdSpend(adSpendData);
+        console.log(`[FB-SYNC] ✅ Upserted spend: $${adSpendData.spend} for ${adSpendData.date}`);
+        return;
+      } catch (error: any) {
+        console.error(`[FB-SYNC] ❌ Upsert attempt ${attempt} failed:`, error.message);
+        if (attempt === maxRetries) {
+          throw error;
+        }
+        // Wait before retry with exponential backoff
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+
   async syncTodayData(): Promise<void> {
     if (this.isRunning) {
       console.log('[FB-SYNC] Sync already running, skipping today sync');
@@ -351,7 +371,7 @@ export class FacebookSyncService {
       const todayData = await facebookClient.getAdAccountSpend(dateRange);
       console.log(`[FB-SYNC] Today's data returned ${todayData.length} data points`);
 
-      // Store/update today's data for automatikblog-main campaign
+      // Store/update today's data for automatikblog-main campaign with retry mechanism
       for (const data of todayData) {
         const adSpendData = {
           campaignId: 'automatikblog-main',
@@ -364,8 +384,8 @@ export class FacebookSyncService {
           updatedAt: new Date()
         };
 
-        await storage.upsertAdSpend(adSpendData);
-        console.log(`[FB-SYNC] Upserted today's spend: $${data.spend} for ${data.date}`);
+        await this.upsertAdSpendWithRetry(adSpendData);
+        console.log(`[FB-SYNC] ✅ Upserted today's spend: $${data.spend} for ${data.date}`);
       }
 
       const totalSpend = todayData.reduce((sum, data) => sum + data.spend, 0);

@@ -21,7 +21,7 @@ import {
   type InsertConversion,
   type InsertCampaignSettings
 } from "@shared/schema";
-import { eq, sql, gte, lte, and, desc } from "drizzle-orm";
+import { eq, sql, gte, lte, and, desc, isNotNull, or } from "drizzle-orm";
 import { db } from "./db";
 
 // Geographic Analytics Types
@@ -466,21 +466,69 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
-    const [spend] = await db
-      .insert(adSpend)
-      .values(insertAdSpend)
-      .onConflictDoUpdate({
-        target: [adSpend.campaignId, adSpend.date],
-        set: {
-          spend: sql`excluded.spend`,
-          impressions: sql`excluded.impressions`,
-          reach: sql`excluded.reach`, 
-          frequency: sql`excluded.frequency`,
-          updatedAt: new Date()
+    try {
+      // Tentar upsert primeiro
+      const [spend] = await db
+        .insert(adSpend)
+        .values(insertAdSpend)
+        .onConflictDoUpdate({
+          target: [adSpend.campaignId, adSpend.date],
+          set: {
+            spend: sql`excluded.spend`,
+            impressions: sql`excluded.impressions`,
+            reach: sql`excluded.reach`, 
+            frequency: sql`excluded.frequency`,
+            clicks: sql`excluded.clicks`,
+            updatedAt: new Date()
+          }
+        })
+        .returning();
+      return spend;
+    } catch (error: any) {
+      console.log(`[DB-UPSERT] Conflict error, trying manual upsert: ${error.code}`);
+      
+      // Fallback: tentar atualizar primeiro, depois inserir se não existir
+      if (error.code === '42P10') { // Constraint error
+        const existingSpend = await db
+          .select()
+          .from(adSpend)
+          .where(and(
+            eq(adSpend.campaignId, insertAdSpend.campaignId),
+            eq(adSpend.date, insertAdSpend.date)
+          ));
+
+        if (existingSpend.length > 0) {
+          // Atualizar registro existente
+          const [updatedSpend] = await db
+            .update(adSpend)
+            .set({
+              spend: insertAdSpend.spend,
+              impressions: insertAdSpend.impressions,
+              reach: insertAdSpend.reach,
+              frequency: insertAdSpend.frequency,
+              clicks: insertAdSpend.clicks,
+              updatedAt: new Date()
+            })
+            .where(and(
+              eq(adSpend.campaignId, insertAdSpend.campaignId),
+              eq(adSpend.date, insertAdSpend.date)
+            ))
+            .returning();
+          console.log(`[DB-UPSERT] ✅ Updated existing record for ${insertAdSpend.campaignId} ${insertAdSpend.date}`);
+          return updatedSpend;
+        } else {
+          // Inserir novo registro
+          const [newSpend] = await db
+            .insert(adSpend)
+            .values(insertAdSpend)
+            .returning();
+          console.log(`[DB-UPSERT] ✅ Inserted new record for ${insertAdSpend.campaignId} ${insertAdSpend.date}`);
+          return newSpend;
         }
-      })
-      .returning();
-    return spend;
+      }
+      
+      throw error;
+    }
   }
 
   async updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined> {
@@ -841,152 +889,93 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getBestPerformingAds(limit: number = 10): Promise<AdPerformance[]> {
-    // Get clicks with Meta Ads parameters
-    const adClicks = await db.select()
-      .from(clicks)
-      .where(or(isNotNull(clicks.sub4), isNotNull(clicks.sub1)));
+    try {
+      // Otimized query using single JOIN instead of N+1 queries
+      const results = await db
+        .select({
+          adName: sql`COALESCE(${clicks.sub4}, CONCAT('Ad ID: ', ${clicks.sub1}), 'Unknown Ad')`.as('ad_name'),
+          adId: clicks.sub1,
+          clicks: sql`COUNT(DISTINCT ${clicks.id})`.as('clicks'),
+          conversions: sql`COUNT(${conversions.id})`.as('conversions'),
+          revenue: sql`COALESCE(SUM(CAST(${conversions.value} AS DECIMAL)), 0)`.as('revenue'),
+        })
+        .from(clicks)
+        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
+        .where(or(isNotNull(clicks.sub4), isNotNull(clicks.sub1)))
+        .groupBy(clicks.sub4, clicks.sub1)
+        .orderBy(desc(sql`revenue`), desc(sql`conversions`))
+        .limit(limit);
 
-    // Group by ad (sub4 = ad name, sub1 = ad id)
-    const adGroups = new Map<string, {
-      adName: string;
-      adId: string | null;
-      clicks: number;
-      conversions: any[];
-    }>();
-
-    for (const click of adClicks) {
-      const adKey = click.sub4 || click.sub1 || 'Unknown';
-      const adName = click.sub4 || (click.sub1 ? `Ad ID: ${click.sub1}` : 'Unknown Ad');
-      
-      if (!adGroups.has(adKey)) {
-        adGroups.set(adKey, {
-          adName,
-          adId: click.sub1,
-          clicks: 0,
-          conversions: []
-        });
-      }
-      
-      const adGroup = adGroups.get(adKey)!;
-      adGroup.clicks++;
-      
-      // Get conversions for this click
-      const clickConversions = await db.select()
-        .from(conversions)
-        .where(eq(conversions.clickId, click.clickId));
-      
-      adGroup.conversions.push(...clickConversions);
+      return results.map(r => ({
+        adName: r.adName,
+        adId: r.adId,
+        clicks: Number(r.clicks),
+        conversions: Number(r.conversions),
+        revenue: Number(r.revenue),
+        conversionRate: Number(r.clicks) > 0 ? (Number(r.conversions) / Number(r.clicks)) * 100 : 0
+      }));
+    } catch (error) {
+      console.error('[DB-QUERY] Error in getBestPerformingAds:', error);
+      return [];
     }
-
-    // Convert to result format and calculate metrics
-    const results: AdPerformance[] = Array.from(adGroups.values()).map(group => {
-      const revenue = group.conversions.reduce((sum, conv) => sum + parseFloat(conv.value), 0);
-      return {
-        adName: group.adName,
-        adId: group.adId,
-        clicks: group.clicks,
-        conversions: group.conversions.length,
-        revenue,
-        conversionRate: group.clicks > 0 ? (group.conversions.length / group.clicks) * 100 : 0
-      };
-    });
-
-    return results
-      .sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions)
-      .slice(0, limit);
   }
 
   async getBestTrafficChannels(limit: number = 10): Promise<ChannelPerformance[]> {
-    // Get all clicks
-    const allClicks = await db.select().from(clicks);
+    try {
+      // Optimized query using single JOIN instead of N+1 queries
+      const results = await db
+        .select({
+          channel: sql`COALESCE(${clicks.source}, ${clicks.utmSource}, 'direct')`.as('channel'),
+          clicks: sql`COUNT(DISTINCT ${clicks.id})`.as('clicks'),
+          conversions: sql`COUNT(${conversions.id})`.as('conversions'),
+          revenue: sql`COALESCE(SUM(CAST(${conversions.value} AS DECIMAL)), 0)`.as('revenue'),
+        })
+        .from(clicks)
+        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
+        .groupBy(sql`COALESCE(${clicks.source}, ${clicks.utmSource}, 'direct')`)
+        .orderBy(desc(sql`revenue`), desc(sql`conversions`))
+        .limit(limit);
 
-    // Group by channel (source or utm_source)
-    const channelGroups = new Map<string, {
-      channel: string;
-      clicks: number;
-      conversions: any[];
-    }>();
-
-    for (const click of allClicks) {
-      const channel = click.source || click.utmSource || 'direct';
-      
-      if (!channelGroups.has(channel)) {
-        channelGroups.set(channel, {
-          channel,
-          clicks: 0,
-          conversions: []
-        });
-      }
-      
-      const channelGroup = channelGroups.get(channel)!;
-      channelGroup.clicks++;
-      
-      // Get conversions for this click
-      const clickConversions = await db.select()
-        .from(conversions)
-        .where(eq(conversions.clickId, click.clickId));
-      
-      channelGroup.conversions.push(...clickConversions);
+      return results.map(r => ({
+        channel: r.channel,
+        clicks: Number(r.clicks),
+        conversions: Number(r.conversions),
+        revenue: Number(r.revenue),
+        conversionRate: Number(r.clicks) > 0 ? (Number(r.conversions) / Number(r.clicks)) * 100 : 0
+      }));
+    } catch (error) {
+      console.error('[DB-QUERY] Error in getBestTrafficChannels:', error);
+      return [];
     }
-
-    // Convert to result format and calculate metrics
-    const results: ChannelPerformance[] = Array.from(channelGroups.values()).map(group => {
-      const revenue = group.conversions.reduce((sum, conv) => sum + parseFloat(conv.value), 0);
-      return {
-        channel: group.channel,
-        clicks: group.clicks,
-        conversions: group.conversions.length,
-        revenue,
-        conversionRate: group.clicks > 0 ? (group.conversions.length / group.clicks) * 100 : 0
-      };
-    });
-
-    return results
-      .sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions)
-      .slice(0, limit);
   }
 
   async getMetricsChart(days: number = 30): Promise<MetricsChartData[]> {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
 
-    // Get clicks since start date
-    const clicksData = await db.select()
-      .from(clicks)
-      .where(gte(clicks.createdAt, startDate));
+      // Optimized query using single JOIN instead of N+1 queries
+      const results = await db
+        .select({
+          date: sql`DATE(${clicks.createdAt})`.as('date'),
+          clicks: sql`COUNT(DISTINCT ${clicks.id})`.as('clicks'),
+          conversions: sql`COUNT(${conversions.id})`.as('conversions'),
+        })
+        .from(clicks)
+        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
+        .where(gte(clicks.createdAt, startDate))
+        .groupBy(sql`DATE(${clicks.createdAt})`)
+        .orderBy(sql`DATE(${clicks.createdAt})`);
 
-    // Group by date
-    const dateGroups = new Map<string, {
-      date: string;
-      clicks: number;
-      conversions: number;
-    }>();
-
-    for (const click of clicksData) {
-      const dateStr = click.createdAt.toISOString().split('T')[0];
-      
-      if (!dateGroups.has(dateStr)) {
-        dateGroups.set(dateStr, {
-          date: dateStr,
-          clicks: 0,
-          conversions: 0
-        });
-      }
-      
-      const dateGroup = dateGroups.get(dateStr)!;
-      dateGroup.clicks++;
-      
-      // Check if this click has conversions
-      const clickConversions = await db.select()
-        .from(conversions)
-        .where(eq(conversions.clickId, click.clickId));
-      
-      dateGroup.conversions += clickConversions.length;
+      return results.map(r => ({
+        date: r.date,
+        clicks: Number(r.clicks),
+        conversions: Number(r.conversions)
+      }));
+    } catch (error) {
+      console.error('[DB-QUERY] Error in getMetricsChart:', error);
+      return [];
     }
-
-    // Convert to array and sort by date
-    return Array.from(dateGroups.values())
-      .sort((a, b) => a.date.localeCompare(b.date));
   }
 }
 

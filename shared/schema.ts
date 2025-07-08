@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, date } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, date, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -116,9 +116,13 @@ export const adSpend = pgTable("ad_spend", {
   impressions: integer("impressions"),
   reach: integer("reach"),
   frequency: decimal("frequency", { precision: 5, scale: 2 }),
+  clicks: integer("clicks"), // Campo clicks adicionado
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  // Constraint único necessário para operações de upsert
+  uniqueCampaignDate: unique().on(table.campaignId, table.date)
+}));
 
 // Conversion tracking
 export const conversions = pgTable("conversions", {
