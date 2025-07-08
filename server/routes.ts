@@ -5,6 +5,7 @@ import { insertClickSchema, insertPageViewSchema, insertConversionSchema, conver
 import { db } from "./db";
 import express from "express";
 import path from "path";
+import cookieParser from "cookie-parser";
 import { FacebookAdsClient, createFacebookClient, getDateRange } from "./facebook-ads";
 import { syncSingleCampaign, syncAllCampaigns, getSyncStatus, syncTodayData } from "./sync/facebook-sync";
 import { smartSyncService } from "./utils/smart-sync";
@@ -16,8 +17,12 @@ import { getGeoLocation } from "./services/geolocation";
 import { parseUserAgent } from "./services/user-agent-parser";
 import passport from "passport";
 import session from "express-session";
+import { authRoutes } from "./routes/auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure cookie parser (must be before routes that use cookies)
+  app.use(cookieParser());
+
   // Configure session middleware
   app.use(session({
     secret: process.env.SESSION_SECRET || 'metricaclick-default-secret',
@@ -32,6 +37,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize passport
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Register authentication routes
+  app.use("/api/auth", authRoutes);
 
   // Configure Facebook authentication
   configureFacebookAuth();
