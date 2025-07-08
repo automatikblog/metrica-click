@@ -699,6 +699,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Performance Analytics APIs
+  app.get("/api/performance/summary", async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const summary = await storage.getPerformanceSummary(start, end);
+      res.json(summary);
+    } catch (error) {
+      console.error('Error fetching performance summary:', error);
+      res.status(500).json({ error: 'Failed to fetch performance summary' });
+    }
+  });
+
+  app.get("/api/performance/best-campaigns", async (req, res) => {
+    try {
+      const { period = 'today', limit = 3 } = req.query;
+      const campaigns = await storage.getBestPerformingCampaigns(
+        period as 'today' | 'yesterday', 
+        parseInt(limit as string)
+      );
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error fetching best campaigns:', error);
+      res.status(500).json({ error: 'Failed to fetch best campaigns' });
+    }
+  });
+
+  app.get("/api/performance/best-ads", async (req, res) => {
+    try {
+      const { limit = 10 } = req.query;
+      const ads = await storage.getBestPerformingAds(parseInt(limit as string));
+      res.json(ads);
+    } catch (error) {
+      console.error('Error fetching best ads:', error);
+      res.status(500).json({ error: 'Failed to fetch best ads' });
+    }
+  });
+
+  app.get("/api/performance/best-channels", async (req, res) => {
+    try {
+      const { limit = 10 } = req.query;
+      const channels = await storage.getBestTrafficChannels(parseInt(limit as string));
+      res.json(channels);
+    } catch (error) {
+      console.error('Error fetching best channels:', error);
+      res.status(500).json({ error: 'Failed to fetch best channels' });
+    }
+  });
+
+  app.get("/api/performance/metrics-chart", async (req, res) => {
+    try {
+      const { days = 30 } = req.query;
+      const metrics = await storage.getMetricsChart(parseInt(days as string));
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error fetching metrics chart:', error);
+      res.status(500).json({ error: 'Failed to fetch metrics chart' });
+    }
+  });
+
   // Geographic Analytics endpoints
   app.get("/api/analytics/geography", async (req, res) => {
     try {

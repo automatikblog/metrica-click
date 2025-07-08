@@ -1,0 +1,67 @@
+Quero que você adicione um painel de performance resumida no Dashboard do MétricaClick, inspirado na imagem de referência fornecida.
+
+Antes de começar a codar, faça o seguinte:
+
+1. **Analise profundamente a base de código atual** do projeto.
+2. **Identifique os arquivos de frontend e backend** que precisam ser modificados ou criados.
+3. **Avalie onde e como os dados de clicks, conversões e gastos estão armazenados**.
+4. **Planeje como os dados serão agregados e apresentados no painel**, considerando performance e escalabilidade.
+5. **Escreva todas as instruções necessárias para a implementação em um arquivo chamado `Instructions-performance-dashboard.md`**.
+
+---
+
+### O novo painel precisa conter:
+
+1. **Ad Spend**:
+   - Today, Yesterday, This Month, Last Month
+
+2. **Revenue**:
+   - Today, Yesterday, This Month, Last Month
+
+3. **ROAS**:
+   - Today, Yesterday, This Month, Last Month
+
+4. **Best Performing Campaigns (Today e Yesterday)**:
+   - Top 3 campanhas por revenue ou conversões
+
+5. **Best Performing Ads**:
+   - Agrupar por nome do anúncio (`sub4` ou `sub1`) e ranquear por revenue e conversões
+
+6. **Best Traffic Channels**:
+   - Agrupar por `t_source` e ranquear por revenue e conversões
+
+7. **Metrics Chart**:
+   - Gráfico diário com linha de "Clicks" e "Conversions" nos últimos 30 dias
+
+8. **Filtros**:
+   - Date Range Selector
+   - Website
+   - Campaign
+   - Traffic Channel
+   - Métricas A, B, C, D (se possível)
+
+---
+
+### Adicional:
+
+🧹 Remova do Dashboard os seguintes blocos:
+- Click Analytics
+- Quick Actions
+- Recent Activity
+- Tracking Configuration
+
+⚙️ Estilize com base no tema atual do MétricaClick  
+📊 Use os dados reais já salvos no banco (clicks, conversões, gastos)  
+💾 Atualize apenas os arquivos necessários no frontend e backend  
+🧪 Valide os dados e os cálculos antes de renderizar  
+📂 Comente as alterações nos arquivos modificados  
+
+---
+
+No final da análise, crie o arquivo `Instructions-performance-dashboard.md` contendo:
+
+- Lista de arquivos afetados
+- Tabelas e campos utilizados
+- Querys agregadoras necessárias
+- Componentes React/Vue a serem criados ou substituídos
+- Lógica de back-end para cálculos de ROAS, gastos, conversões etc.

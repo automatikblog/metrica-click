@@ -64,6 +64,59 @@ export interface TimezoneStats {
   conversionRate: number;
 }
 
+export interface PerformanceSummary {
+  spend: {
+    today: number;
+    yesterday: number;
+    thisMonth: number;
+    lastMonth: number;
+  };
+  revenue: {
+    today: number;
+    yesterday: number;
+    thisMonth: number;
+    lastMonth: number;
+  };
+  roas: {
+    today: number;
+    yesterday: number;
+    thisMonth: number;
+    lastMonth: number;
+  };
+}
+
+export interface CampaignPerformance {
+  campaignId: string;
+  name: string;
+  conversions: number;
+  revenue: number;
+  spend: number;
+  roas: number;
+}
+
+export interface AdPerformance {
+  adName: string;
+  adId: string | null;
+  conversions: number;
+  revenue: number;
+  clicks: number;
+  conversionRate: number;
+}
+
+export interface ChannelPerformance {
+  channel: string;
+  clicks: number;
+  conversions: number;
+  revenue: number;
+  conversionRate: number;
+}
+
+export interface MetricsChartData {
+  date: string;
+  clicks: number;
+  conversions: number;
+}
+
 export interface IStorage {
   // Users
   getUser(id: number): Promise<User | undefined>;
@@ -115,6 +168,13 @@ export interface IStorage {
   getClicksGroupedByDevice(startDate?: Date, endDate?: Date): Promise<DeviceStats[]>;
   getClicksGroupedByTimezone(startDate?: Date, endDate?: Date): Promise<TimezoneStats[]>;
   getTopCountries(limit?: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
+  
+  // Performance Analytics
+  getPerformanceSummary(startDate?: Date, endDate?: Date): Promise<PerformanceSummary>;
+  getBestPerformingCampaigns(period: 'today' | 'yesterday', limit?: number): Promise<CampaignPerformance[]>;
+  getBestPerformingAds(limit?: number): Promise<AdPerformance[]>;
+  getBestTrafficChannels(limit?: number): Promise<ChannelPerformance[]>;
+  getMetricsChart(days?: number): Promise<MetricsChartData[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -632,6 +692,301 @@ export class DatabaseStorage implements IStorage {
   async getTopCountries(limit: number = 10, startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
     const countryStats = await this.getClicksGroupedByCountry(startDate, endDate);
     return countryStats.slice(0, limit);
+  }
+
+  async getPerformanceSummary(startDate?: Date, endDate?: Date): Promise<PerformanceSummary> {
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const thisMonthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    const todayStr = today.toISOString().split('T')[0];
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const thisMonthStr = thisMonthStart.toISOString().split('T')[0];
+    const lastMonthStartStr = lastMonthStart.toISOString().split('T')[0];
+    const lastMonthEndStr = lastMonthEnd.toISOString().split('T')[0];
+
+    // Get spend data for different periods
+    const todaySpend = await db.select({ spend: adSpend.spend })
+      .from(adSpend)
+      .where(eq(sql`DATE(${adSpend.date})`, todayStr));
+
+    const yesterdaySpend = await db.select({ spend: adSpend.spend })
+      .from(adSpend)
+      .where(eq(sql`DATE(${adSpend.date})`, yesterdayStr));
+
+    const thisMonthSpend = await db.select({ spend: adSpend.spend })
+      .from(adSpend)
+      .where(gte(sql`DATE(${adSpend.date})`, thisMonthStr));
+
+    const lastMonthSpend = await db.select({ spend: adSpend.spend })
+      .from(adSpend)
+      .where(
+        and(
+          gte(sql`DATE(${adSpend.date})`, lastMonthStartStr),
+          lte(sql`DATE(${adSpend.date})`, lastMonthEndStr)
+        )
+      );
+
+    // Get revenue data for different periods
+    const todayRevenue = await db.select({ value: conversions.value })
+      .from(conversions)
+      .where(eq(sql`DATE(${conversions.createdAt})`, todayStr));
+
+    const yesterdayRevenue = await db.select({ value: conversions.value })
+      .from(conversions)
+      .where(eq(sql`DATE(${conversions.createdAt})`, yesterdayStr));
+
+    const thisMonthRevenue = await db.select({ value: conversions.value })
+      .from(conversions)
+      .where(gte(sql`DATE(${conversions.createdAt})`, thisMonthStr));
+
+    const lastMonthRevenue = await db.select({ value: conversions.value })
+      .from(conversions)
+      .where(
+        and(
+          gte(sql`DATE(${conversions.createdAt})`, lastMonthStartStr),
+          lte(sql`DATE(${conversions.createdAt})`, lastMonthEndStr)
+        )
+      );
+
+    const spend = {
+      today: todaySpend.reduce((sum, s) => sum + parseFloat(s.spend), 0),
+      yesterday: yesterdaySpend.reduce((sum, s) => sum + parseFloat(s.spend), 0),
+      thisMonth: thisMonthSpend.reduce((sum, s) => sum + parseFloat(s.spend), 0),
+      lastMonth: lastMonthSpend.reduce((sum, s) => sum + parseFloat(s.spend), 0),
+    };
+
+    const revenue = {
+      today: todayRevenue.reduce((sum, r) => sum + parseFloat(r.value), 0),
+      yesterday: yesterdayRevenue.reduce((sum, r) => sum + parseFloat(r.value), 0),
+      thisMonth: thisMonthRevenue.reduce((sum, r) => sum + parseFloat(r.value), 0),
+      lastMonth: lastMonthRevenue.reduce((sum, r) => sum + parseFloat(r.value), 0),
+    };
+
+    const roas = {
+      today: spend.today > 0 ? revenue.today / spend.today : 0,
+      yesterday: spend.yesterday > 0 ? revenue.yesterday / spend.yesterday : 0,
+      thisMonth: spend.thisMonth > 0 ? revenue.thisMonth / spend.thisMonth : 0,
+      lastMonth: spend.lastMonth > 0 ? revenue.lastMonth / spend.lastMonth : 0,
+    };
+
+    return { spend, revenue, roas };
+  }
+
+  async getBestPerformingCampaigns(period: 'today' | 'yesterday', limit: number = 3): Promise<CampaignPerformance[]> {
+    const targetDate = new Date();
+    if (period === 'yesterday') {
+      targetDate.setDate(targetDate.getDate() - 1);
+    }
+    const dateStr = targetDate.toISOString().split('T')[0];
+
+    // Get all campaigns first
+    const allCampaigns = await db.select().from(campaigns);
+    
+    const results: CampaignPerformance[] = [];
+    
+    for (const campaign of allCampaigns) {
+      // Get clicks for this campaign on target date
+      const campaignClicks = await db.select()
+        .from(clicks)
+        .where(
+          and(
+            eq(clicks.campaignId, campaign.campaignId),
+            eq(sql`DATE(${clicks.createdAt})`, dateStr)
+          )
+        );
+
+      // Get conversions for these clicks
+      const clickIds = campaignClicks.map(c => c.clickId);
+      let campaignConversions: any[] = [];
+      let totalRevenue = 0;
+      
+      if (clickIds.length > 0) {
+        campaignConversions = await db.select()
+          .from(conversions)
+          .where(sql`${conversions.clickId} IN (${clickIds.map(id => `'${id}'`).join(',')})`);
+        
+        totalRevenue = campaignConversions.reduce((sum, conv) => sum + parseFloat(conv.value), 0);
+      }
+
+      // Get spend for this campaign on target date
+      const campaignSpend = await db.select()
+        .from(adSpend)
+        .where(
+          and(
+            eq(adSpend.campaignId, campaign.campaignId),
+            eq(sql`DATE(${adSpend.date})`, dateStr)
+          )
+        );
+
+      const totalSpend = campaignSpend.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
+
+      results.push({
+        campaignId: campaign.campaignId,
+        name: campaign.name,
+        conversions: campaignConversions.length,
+        revenue: totalRevenue,
+        spend: totalSpend,
+        roas: totalSpend > 0 ? totalRevenue / totalSpend : 0
+      });
+    }
+
+    return results
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, limit);
+  }
+
+  async getBestPerformingAds(limit: number = 10): Promise<AdPerformance[]> {
+    // Get clicks with Meta Ads parameters
+    const adClicks = await db.select()
+      .from(clicks)
+      .where(or(isNotNull(clicks.sub4), isNotNull(clicks.sub1)));
+
+    // Group by ad (sub4 = ad name, sub1 = ad id)
+    const adGroups = new Map<string, {
+      adName: string;
+      adId: string | null;
+      clicks: number;
+      conversions: any[];
+    }>();
+
+    for (const click of adClicks) {
+      const adKey = click.sub4 || click.sub1 || 'Unknown';
+      const adName = click.sub4 || (click.sub1 ? `Ad ID: ${click.sub1}` : 'Unknown Ad');
+      
+      if (!adGroups.has(adKey)) {
+        adGroups.set(adKey, {
+          adName,
+          adId: click.sub1,
+          clicks: 0,
+          conversions: []
+        });
+      }
+      
+      const adGroup = adGroups.get(adKey)!;
+      adGroup.clicks++;
+      
+      // Get conversions for this click
+      const clickConversions = await db.select()
+        .from(conversions)
+        .where(eq(conversions.clickId, click.clickId));
+      
+      adGroup.conversions.push(...clickConversions);
+    }
+
+    // Convert to result format and calculate metrics
+    const results: AdPerformance[] = Array.from(adGroups.values()).map(group => {
+      const revenue = group.conversions.reduce((sum, conv) => sum + parseFloat(conv.value), 0);
+      return {
+        adName: group.adName,
+        adId: group.adId,
+        clicks: group.clicks,
+        conversions: group.conversions.length,
+        revenue,
+        conversionRate: group.clicks > 0 ? (group.conversions.length / group.clicks) * 100 : 0
+      };
+    });
+
+    return results
+      .sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions)
+      .slice(0, limit);
+  }
+
+  async getBestTrafficChannels(limit: number = 10): Promise<ChannelPerformance[]> {
+    // Get all clicks
+    const allClicks = await db.select().from(clicks);
+
+    // Group by channel (source or utm_source)
+    const channelGroups = new Map<string, {
+      channel: string;
+      clicks: number;
+      conversions: any[];
+    }>();
+
+    for (const click of allClicks) {
+      const channel = click.source || click.utmSource || 'direct';
+      
+      if (!channelGroups.has(channel)) {
+        channelGroups.set(channel, {
+          channel,
+          clicks: 0,
+          conversions: []
+        });
+      }
+      
+      const channelGroup = channelGroups.get(channel)!;
+      channelGroup.clicks++;
+      
+      // Get conversions for this click
+      const clickConversions = await db.select()
+        .from(conversions)
+        .where(eq(conversions.clickId, click.clickId));
+      
+      channelGroup.conversions.push(...clickConversions);
+    }
+
+    // Convert to result format and calculate metrics
+    const results: ChannelPerformance[] = Array.from(channelGroups.values()).map(group => {
+      const revenue = group.conversions.reduce((sum, conv) => sum + parseFloat(conv.value), 0);
+      return {
+        channel: group.channel,
+        clicks: group.clicks,
+        conversions: group.conversions.length,
+        revenue,
+        conversionRate: group.clicks > 0 ? (group.conversions.length / group.clicks) * 100 : 0
+      };
+    });
+
+    return results
+      .sort((a, b) => b.revenue - a.revenue || b.conversions - a.conversions)
+      .slice(0, limit);
+  }
+
+  async getMetricsChart(days: number = 30): Promise<MetricsChartData[]> {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    // Get clicks since start date
+    const clicksData = await db.select()
+      .from(clicks)
+      .where(gte(clicks.createdAt, startDate));
+
+    // Group by date
+    const dateGroups = new Map<string, {
+      date: string;
+      clicks: number;
+      conversions: number;
+    }>();
+
+    for (const click of clicksData) {
+      const dateStr = click.createdAt.toISOString().split('T')[0];
+      
+      if (!dateGroups.has(dateStr)) {
+        dateGroups.set(dateStr, {
+          date: dateStr,
+          clicks: 0,
+          conversions: 0
+        });
+      }
+      
+      const dateGroup = dateGroups.get(dateStr)!;
+      dateGroup.clicks++;
+      
+      // Check if this click has conversions
+      const clickConversions = await db.select()
+        .from(conversions)
+        .where(eq(conversions.clickId, click.clickId));
+      
+      dateGroup.conversions += clickConversions.length;
+    }
+
+    // Convert to array and sort by date
+    return Array.from(dateGroups.values())
+      .sort((a, b) => a.date.localeCompare(b.date));
   }
 }
 
