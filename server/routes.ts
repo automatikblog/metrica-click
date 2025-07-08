@@ -197,7 +197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Facebook not connected' });
       }
       
-      const campaign = await storage.getCampaignByCampaignId(campaignId);
+      const campaign = await storage.getCampaignByCampaignIdGlobal(campaignId); // Using global method for tracking script
       if (!campaign) {
         return res.status(404).json({ error: 'Campaign not found' });
       }
@@ -258,7 +258,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Get updated totals
-      const updatedData = await storage.getAdSpend(campaignId);
+      const updatedData = await storage.getAdSpend(1, campaignId); // tenantId = 1 (AutomatikBlog)
       const newTotal = updatedData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
       
       res.json({
@@ -285,7 +285,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await smartSyncService.detectAndResolveIssues();
       
       // Get updated data after smart sync
-      const spendData = await storage.getAdSpend(campaignId);
+      const spendData = await storage.getAdSpend(1, campaignId); // tenantId = 1 (AutomatikBlog)
       const totalSpend = spendData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
       
       // Validate data integrity
@@ -320,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[ACCOUNT-SYNC] Clearing existing data...');
       
       // Get existing data first to delete it properly
-      const existingData = await storage.getAdSpend(campaignId);
+      const existingData = await storage.getAdSpend(1, campaignId); // tenantId = 1 (AutomatikBlog)
       console.log(`[ACCOUNT-SYNC] Found ${existingData.length} existing records to clear`);
 
       // Get comprehensive date range
@@ -344,7 +344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: new Date()
         };
         
-        await storage.upsertAdSpend(adSpendData);
+        await storage.upsertAdSpend(1, adSpendData); // tenantId = 1 (AutomatikBlog)
       }
       
       // Calculate total
@@ -425,13 +425,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[DAILY-SYNC] Getting daily spend data for ${campaignId} to match Facebook Manager exactly`);
       
       // Get only the latest day's spend from our stored data
-      const latestSpend = await storage.getAdSpend(campaignId, new Date('2025-07-06'), new Date('2025-07-06'));
+      const latestSpend = await storage.getAdSpend(1, campaignId, new Date('2025-07-06'), new Date('2025-07-06')); // tenantId = 1 (AutomatikBlog)
       
       if (latestSpend.length > 0) {
         const dailySpend = parseFloat(latestSpend[0].spend);
         
         // Update campaign with daily spend instead of total
-        await storage.updateCampaign(campaignId, {
+        await storage.updateCampaign(1, campaignId, { // tenantId = 1 (AutomatikBlog)
           totalSpend: dailySpend.toString()
         });
         
@@ -485,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get campaign settings
-      const settings = await storage.getCampaignSettings(campaignId);
+      const settings = await storage.getCampaignSettings(1, campaignId); // tenantId = 1 (AutomatikBlog)
       if (!settings?.fbCampaignId) {
         return res.status(400).json({ error: 'Campaign not connected to Facebook' });
       }
@@ -539,12 +539,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if campaign exists or create organic campaign
-      let campaign = await storage.getCampaignByCampaignId(campaignID);
+      let campaign = await storage.getCampaignByCampaignIdGlobal(campaignID); // Using global method for tracking script
       if (!campaign) {
         // Handle special case for organic traffic
         if (campaignID === 'organic') {
-          // Create organic campaign if it doesn't exist
-          campaign = await storage.createCampaign({
+          // Create organic campaign if it doesn't exist with AutomatikBlog tenant
+          campaign = await storage.createCampaign(1, { // tenantId = 1 (AutomatikBlog)
             name: "Organic Traffic",
             campaignId: "organic",
             status: "active"
@@ -621,7 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         utmId: req.query.utm_id as string || undefined,
       };
 
-      await storage.createClick(clickData);
+      await storage.createClick(campaign.tenantId, clickData); // Using tenantId from campaign
       console.log('Click created successfully:', clickId);
 
       res.json({ clickid: clickId });
@@ -644,7 +644,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify click exists
-      const click = await storage.getClickByClickId(clickid as string);
+      const click = await storage.getClickByClickIdGlobal(clickid as string); // Using global method for tracking script
       if (!click) {
         return res.status(404).json({ error: "Click not found" });
       }
@@ -687,7 +687,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isCrawler: deviceInfo.isCrawler
       };
 
-      await storage.createPageView(pageViewData);
+      await storage.createPageView(click.tenantId, pageViewData); // Using tenantId from click
       console.log('Page view created successfully for click ID:', req.query.clickid);
 
       res.status(200).send("OK");
@@ -706,7 +706,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const start = startDate ? new Date(startDate as string) : undefined;
       const end = endDate ? new Date(endDate as string) : undefined;
       
-      const summary = await storage.getPerformanceSummary(start, end);
+      const summary = await storage.getPerformanceSummary(1, start, end); // tenantId = 1 (AutomatikBlog)
       res.json(summary);
     } catch (error) {
       console.error('Error fetching performance summary:', error);
@@ -718,6 +718,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { period = 'today', limit = 3 } = req.query;
       const campaigns = await storage.getBestPerformingCampaigns(
+        1, // tenantId = 1 (AutomatikBlog)
         period as 'today' | 'yesterday', 
         parseInt(limit as string)
       );
@@ -731,7 +732,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/performance/best-ads", async (req, res) => {
     try {
       const { limit = 10 } = req.query;
-      const ads = await storage.getBestPerformingAds(parseInt(limit as string));
+      const ads = await storage.getBestPerformingAds(1, parseInt(limit as string)); // tenantId = 1 (AutomatikBlog)
       res.json(ads);
     } catch (error) {
       console.error('Error fetching best ads:', error);
@@ -742,7 +743,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/performance/best-channels", async (req, res) => {
     try {
       const { limit = 10 } = req.query;
-      const channels = await storage.getBestTrafficChannels(parseInt(limit as string));
+      const channels = await storage.getBestTrafficChannels(1, parseInt(limit as string)); // tenantId = 1 (AutomatikBlog)
       res.json(channels);
     } catch (error) {
       console.error('Error fetching best channels:', error);
@@ -753,7 +754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/performance/metrics-chart", async (req, res) => {
     try {
       const { days = 30 } = req.query;
-      const metrics = await storage.getMetricsChart(parseInt(days as string));
+      const metrics = await storage.getMetricsChart(1, parseInt(days as string)); // tenantId = 1 (AutomatikBlog)
       res.json(metrics);
     } catch (error) {
       console.error('Error fetching metrics chart:', error);
@@ -769,10 +770,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = endDate ? new Date(endDate as string) : undefined;
       
       const [countryStats, regionStats, deviceStats, timezoneStats] = await Promise.all([
-        storage.getClicksGroupedByCountry(start, end),
-        storage.getClicksGroupedByRegion(start, end),
-        storage.getClicksGroupedByDevice(start, end),
-        storage.getClicksGroupedByTimezone(start, end)
+        storage.getClicksGroupedByCountry(1, start, end), // tenantId = 1 (AutomatikBlog)
+        storage.getClicksGroupedByRegion(1, start, end),
+        storage.getClicksGroupedByDevice(1, start, end),
+        storage.getClicksGroupedByTimezone(1, start, end)
       ]);
       
       res.json({

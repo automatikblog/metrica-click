@@ -6,6 +6,10 @@ import {
   adSpend,
   conversions,
   campaignSettings,
+  tenants,
+  usersNew,
+  userInvitations,
+  userSessions,
   type Campaign, 
   type Click, 
   type PageView, 
@@ -13,13 +17,21 @@ import {
   type AdSpend,
   type Conversion,
   type CampaignSettings,
+  type Tenant,
+  type UserNew,
+  type UserInvitation,
+  type UserSession,
   type InsertCampaign, 
   type InsertClick, 
   type InsertPageView, 
   type InsertUser,
   type InsertAdSpend,
   type InsertConversion,
-  type InsertCampaignSettings
+  type InsertCampaignSettings,
+  type InsertTenant,
+  type InsertUserNew,
+  type InsertUserInvitation,
+  type InsertUserSession
 } from "@shared/schema";
 import { eq, sql, gte, lte, and, desc, isNotNull, or } from "drizzle-orm";
 import { db } from "./db";
@@ -118,63 +130,84 @@ export interface MetricsChartData {
 }
 
 export interface IStorage {
-  // Users
+  // Tenants
+  getTenant(id: number): Promise<Tenant | undefined>;
+  getTenantBySlug(slug: string): Promise<Tenant | undefined>;
+  createTenant(tenant: InsertTenant): Promise<Tenant>;
+  updateTenant(id: number, updates: Partial<Tenant>): Promise<Tenant | undefined>;
+  
+  // Users (new multiuser system)
+  getUserNew(id: number): Promise<UserNew | undefined>;
+  getUserNewByEmail(email: string): Promise<UserNew | undefined>;
+  getUserNewsByTenant(tenantId: number): Promise<UserNew[]>;
+  createUserNew(user: InsertUserNew): Promise<UserNew>;
+  updateUserNew(id: number, updates: Partial<UserNew>): Promise<UserNew | undefined>;
+  deleteUserNew(id: number): Promise<boolean>;
+  
+  // Legacy users (kept for compatibility)
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
-  // Campaigns
+  // Campaigns - TENANT SCOPED
   getCampaign(id: number): Promise<Campaign | undefined>;
-  getCampaignByCampaignId(campaignId: string): Promise<Campaign | undefined>;
-  createCampaign(campaign: InsertCampaign): Promise<Campaign>;
-  getAllCampaigns(): Promise<Campaign[]>;
-  updateCampaign(campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined>;
+  getCampaignByCampaignId(tenantId: number, campaignId: string): Promise<Campaign | undefined>;
+  getCampaignByCampaignIdGlobal(campaignId: string): Promise<Campaign | undefined>; // For tracking script
+  createCampaign(tenantId: number, campaign: InsertCampaign): Promise<Campaign>;
+  getCampaignsByTenant(tenantId: number): Promise<Campaign[]>;
+  getAllCampaigns(): Promise<Campaign[]>; // Legacy - remove eventually
+  updateCampaign(tenantId: number, campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined>;
   
-  // Clicks
+  // Clicks - TENANT SCOPED
   getClick(id: number): Promise<Click | undefined>;
-  getClickByClickId(clickId: string): Promise<Click | undefined>;
-  createClick(click: InsertClick): Promise<Click>;
-  getClicksByCampaignId(campaignId: string): Promise<Click[]>;
-  getAllClicks(): Promise<Click[]>;
-  updateClick(clickId: string, updates: Partial<Click>): Promise<Click | undefined>;
+  getClickByClickId(tenantId: number, clickId: string): Promise<Click | undefined>;
+  getClickByClickIdGlobal(clickId: string): Promise<Click | undefined>; // For tracking script
+  createClick(tenantId: number, click: InsertClick): Promise<Click>;
+  getClicksByCampaignId(tenantId: number, campaignId: string): Promise<Click[]>;
+  getClicksByTenant(tenantId: number): Promise<Click[]>;
+  getAllClicks(): Promise<Click[]>; // Legacy - remove eventually
+  updateClick(tenantId: number, clickId: string, updates: Partial<Click>): Promise<Click | undefined>;
   
-  // Page Views
+  // Page Views - TENANT SCOPED
   getPageView(id: number): Promise<PageView | undefined>;
-  createPageView(pageView: InsertPageView): Promise<PageView>;
-  getPageViewsByClickId(clickId: string): Promise<PageView[]>;
-  getAllPageViews(): Promise<PageView[]>;
+  createPageView(tenantId: number, pageView: InsertPageView): Promise<PageView>;
+  getPageViewsByClickId(tenantId: number, clickId: string): Promise<PageView[]>;
+  getPageViewsByTenant(tenantId: number): Promise<PageView[]>;
+  getAllPageViews(): Promise<PageView[]>; // Legacy - remove eventually
   
-  // Ad Spend Operations
-  getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]>;
-  createAdSpend(adSpend: InsertAdSpend): Promise<AdSpend>;
-  upsertAdSpend(adSpend: InsertAdSpend): Promise<AdSpend>;
-  updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined>;
+  // Ad Spend Operations - TENANT SCOPED
+  getAdSpend(tenantId: number, campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]>;
+  createAdSpend(tenantId: number, adSpend: InsertAdSpend): Promise<AdSpend>;
+  upsertAdSpend(tenantId: number, adSpend: InsertAdSpend): Promise<AdSpend>;
+  updateAdSpend(tenantId: number, id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined>;
   
-  // Conversion Operations
+  // Conversion Operations - TENANT SCOPED
   getConversion(id: number): Promise<Conversion | undefined>;
-  getConversionsByClickId(clickId: string): Promise<Conversion[]>;
-  createConversion(conversion: InsertConversion): Promise<Conversion>;
-  getConversionsByCampaignId(campaignId: string): Promise<Conversion[]>;
+  getConversionsByClickId(tenantId: number, clickId: string): Promise<Conversion[]>;
+  createConversion(tenantId: number, conversion: InsertConversion): Promise<Conversion>;
+  getConversionsByCampaignId(tenantId: number, campaignId: string): Promise<Conversion[]>;
+  getConversionsByTenant(tenantId: number): Promise<Conversion[]>;
   
-  // Campaign Settings
-  getCampaignSettings(campaignId: string): Promise<CampaignSettings | undefined>;
-  createCampaignSettings(settings: InsertCampaignSettings): Promise<CampaignSettings>;
-  updateCampaignSettings(campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined>;
+  // Campaign Settings - TENANT SCOPED
+  getCampaignSettings(tenantId: number, campaignId: string): Promise<CampaignSettings | undefined>;
+  createCampaignSettings(tenantId: number, settings: InsertCampaignSettings): Promise<CampaignSettings>;
+  updateCampaignSettings(tenantId: number, campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined>;
+  getCampaignSettingsByTenant(tenantId: number): Promise<CampaignSettings[]>;
   
-  // Geographic Analytics
-  getClicksGroupedByCountry(startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
-  getClicksGroupedByRegion(startDate?: Date, endDate?: Date): Promise<RegionStats[]>;
-  getClicksGroupedByCity(startDate?: Date, endDate?: Date): Promise<CityStats[]>;
-  getClicksGroupedByDevice(startDate?: Date, endDate?: Date): Promise<DeviceStats[]>;
-  getClicksGroupedByTimezone(startDate?: Date, endDate?: Date): Promise<TimezoneStats[]>;
-  getTopCountries(limit?: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
+  // Geographic Analytics - TENANT SCOPED
+  getClicksGroupedByCountry(tenantId: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
+  getClicksGroupedByRegion(tenantId: number, startDate?: Date, endDate?: Date): Promise<RegionStats[]>;
+  getClicksGroupedByCity(tenantId: number, startDate?: Date, endDate?: Date): Promise<CityStats[]>;
+  getClicksGroupedByDevice(tenantId: number, startDate?: Date, endDate?: Date): Promise<DeviceStats[]>;
+  getClicksGroupedByTimezone(tenantId: number, startDate?: Date, endDate?: Date): Promise<TimezoneStats[]>;
+  getTopCountries(tenantId: number, limit?: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]>;
   
-  // Performance Analytics
-  getPerformanceSummary(startDate?: Date, endDate?: Date): Promise<PerformanceSummary>;
-  getBestPerformingCampaigns(period: 'today' | 'yesterday', limit?: number): Promise<CampaignPerformance[]>;
-  getBestPerformingAds(limit?: number): Promise<AdPerformance[]>;
-  getBestTrafficChannels(limit?: number): Promise<ChannelPerformance[]>;
-  getMetricsChart(days?: number): Promise<MetricsChartData[]>;
+  // Performance Analytics - TENANT SCOPED
+  getPerformanceSummary(tenantId: number, startDate?: Date, endDate?: Date): Promise<PerformanceSummary>;
+  getBestPerformingCampaigns(tenantId: number, period: 'today' | 'yesterday', limit?: number): Promise<CampaignPerformance[]>;
+  getBestPerformingAds(tenantId: number, limit?: number): Promise<AdPerformance[]>;
+  getBestTrafficChannels(tenantId: number, limit?: number): Promise<ChannelPerformance[]>;
+  getMetricsChart(tenantId: number, days?: number): Promise<MetricsChartData[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -338,6 +371,66 @@ export class MemStorage implements IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // Tenants
+  async getTenant(id: number): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.id, id));
+    return tenant || undefined;
+  }
+
+  async getTenantBySlug(slug: string): Promise<Tenant | undefined> {
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, slug));
+    return tenant || undefined;
+  }
+
+  async createTenant(insertTenant: InsertTenant): Promise<Tenant> {
+    const [tenant] = await db.insert(tenants).values(insertTenant).returning();
+    return tenant;
+  }
+
+  async updateTenant(id: number, updates: Partial<Tenant>): Promise<Tenant | undefined> {
+    const [tenant] = await db
+      .update(tenants)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(tenants.id, id))
+      .returning();
+    return tenant || undefined;
+  }
+
+  // Users (new multiuser system)
+  async getUserNew(id: number): Promise<UserNew | undefined> {
+    const [user] = await db.select().from(usersNew).where(eq(usersNew.id, id));
+    return user || undefined;
+  }
+
+  async getUserNewByEmail(email: string): Promise<UserNew | undefined> {
+    const [user] = await db.select().from(usersNew).where(eq(usersNew.email, email));
+    return user || undefined;
+  }
+
+  async getUserNewsByTenant(tenantId: number): Promise<UserNew[]> {
+    return await db.select().from(usersNew).where(eq(usersNew.tenantId, tenantId));
+  }
+
+  async createUserNew(insertUser: InsertUserNew): Promise<UserNew> {
+    const [user] = await db.insert(usersNew).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUserNew(id: number, updates: Partial<UserNew>): Promise<UserNew | undefined> {
+    const [user] = await db
+      .update(usersNew)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(usersNew.id, id))
+      .returning();
+    return user || undefined;
+  }
+
+  async deleteUserNew(id: number): Promise<boolean> {
+    const result = await db.delete(usersNew).where(eq(usersNew.id, id));
+    return result.rowCount > 0;
+  }
+
+  // Legacy users (kept for compatibility)
   async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user || undefined;
@@ -361,28 +454,40 @@ export class DatabaseStorage implements IStorage {
     return campaign || undefined;
   }
 
-  async getCampaignByCampaignId(campaignId: string): Promise<Campaign | undefined> {
+  async getCampaignByCampaignId(tenantId: number, campaignId: string): Promise<Campaign | undefined> {
+    const [campaign] = await db
+      .select()
+      .from(campaigns)
+      .where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.campaignId, campaignId)));
+    return campaign || undefined;
+  }
+
+  async getCampaignByCampaignIdGlobal(campaignId: string): Promise<Campaign | undefined> {
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.campaignId, campaignId));
     return campaign || undefined;
   }
 
-  async createCampaign(insertCampaign: InsertCampaign): Promise<Campaign> {
+  async createCampaign(tenantId: number, insertCampaign: InsertCampaign): Promise<Campaign> {
     const [campaign] = await db
       .insert(campaigns)
-      .values(insertCampaign)
+      .values({ ...insertCampaign, tenantId })
       .returning();
     return campaign;
+  }
+
+  async getCampaignsByTenant(tenantId: number): Promise<Campaign[]> {
+    return await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId));
   }
 
   async getAllCampaigns(): Promise<Campaign[]> {
     return await db.select().from(campaigns);
   }
 
-  async updateCampaign(campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined> {
+  async updateCampaign(tenantId: number, campaignId: string, updates: Partial<Campaign>): Promise<Campaign | undefined> {
     const [campaign] = await db
       .update(campaigns)
       .set(updates)
-      .where(eq(campaigns.campaignId, campaignId))
+      .where(and(eq(campaigns.tenantId, tenantId), eq(campaigns.campaignId, campaignId)))
       .returning();
     return campaign || undefined;
   }
@@ -392,32 +497,47 @@ export class DatabaseStorage implements IStorage {
     return click || undefined;
   }
 
-  async getClickByClickId(clickId: string): Promise<Click | undefined> {
+  async getClickByClickId(tenantId: number, clickId: string): Promise<Click | undefined> {
+    const [click] = await db
+      .select()
+      .from(clicks)
+      .where(and(eq(clicks.tenantId, tenantId), eq(clicks.clickId, clickId)));
+    return click || undefined;
+  }
+
+  async getClickByClickIdGlobal(clickId: string): Promise<Click | undefined> {
     const [click] = await db.select().from(clicks).where(eq(clicks.clickId, clickId));
     return click || undefined;
   }
 
-  async createClick(insertClick: InsertClick): Promise<Click> {
+  async createClick(tenantId: number, insertClick: InsertClick): Promise<Click> {
     const [click] = await db
       .insert(clicks)
-      .values(insertClick)
+      .values({ ...insertClick, tenantId })
       .returning();
     return click;
   }
 
-  async getClicksByCampaignId(campaignId: string): Promise<Click[]> {
-    return await db.select().from(clicks).where(eq(clicks.campaignId, campaignId));
+  async getClicksByCampaignId(tenantId: number, campaignId: string): Promise<Click[]> {
+    return await db
+      .select()
+      .from(clicks)
+      .where(and(eq(clicks.tenantId, tenantId), eq(clicks.campaignId, campaignId)));
+  }
+
+  async getClicksByTenant(tenantId: number): Promise<Click[]> {
+    return await db.select().from(clicks).where(eq(clicks.tenantId, tenantId));
   }
 
   async getAllClicks(): Promise<Click[]> {
     return await db.select().from(clicks).orderBy(desc(clicks.createdAt));
   }
 
-  async updateClick(clickId: string, updates: Partial<Click>): Promise<Click | undefined> {
+  async updateClick(tenantId: number, clickId: string, updates: Partial<Click>): Promise<Click | undefined> {
     const [click] = await db
       .update(clicks)
       .set(updates)
-      .where(eq(clicks.clickId, clickId))
+      .where(and(eq(clicks.tenantId, tenantId), eq(clicks.clickId, clickId)))
       .returning();
     return click || undefined;
   }
@@ -427,16 +547,23 @@ export class DatabaseStorage implements IStorage {
     return pageView || undefined;
   }
 
-  async createPageView(insertPageView: InsertPageView): Promise<PageView> {
+  async createPageView(tenantId: number, insertPageView: InsertPageView): Promise<PageView> {
     const [pageView] = await db
       .insert(pageViews)
-      .values(insertPageView)
+      .values({ ...insertPageView, tenantId })
       .returning();
     return pageView;
   }
 
-  async getPageViewsByClickId(clickId: string): Promise<PageView[]> {
-    return await db.select().from(pageViews).where(eq(pageViews.clickId, clickId));
+  async getPageViewsByClickId(tenantId: number, clickId: string): Promise<PageView[]> {
+    return await db
+      .select()
+      .from(pageViews)
+      .where(and(eq(pageViews.tenantId, tenantId), eq(pageViews.clickId, clickId)));
+  }
+
+  async getPageViewsByTenant(tenantId: number): Promise<PageView[]> {
+    return await db.select().from(pageViews).where(eq(pageViews.tenantId, tenantId));
   }
 
   async getAllPageViews(): Promise<PageView[]> {
@@ -444,8 +571,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Ad Spend Operations
-  async getAdSpend(campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]> {
-    const conditions = [eq(adSpend.campaignId, campaignId)];
+  async getAdSpend(tenantId: number, campaignId: string, startDate?: Date, endDate?: Date): Promise<AdSpend[]> {
+    const conditions = [eq(adSpend.tenantId, tenantId), eq(adSpend.campaignId, campaignId)];
     
     if (startDate) {
       conditions.push(gte(adSpend.date, startDate.toISOString().split('T')[0]));
@@ -457,20 +584,20 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(adSpend).where(and(...conditions));
   }
 
-  async createAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
+  async createAdSpend(tenantId: number, insertAdSpend: InsertAdSpend): Promise<AdSpend> {
     const [spend] = await db
       .insert(adSpend)
-      .values(insertAdSpend)
+      .values({ ...insertAdSpend, tenantId })
       .returning();
     return spend;
   }
 
-  async upsertAdSpend(insertAdSpend: InsertAdSpend): Promise<AdSpend> {
+  async upsertAdSpend(tenantId: number, insertAdSpend: InsertAdSpend): Promise<AdSpend> {
     try {
       // Tentar upsert primeiro
       const [spend] = await db
         .insert(adSpend)
-        .values(insertAdSpend)
+        .values({ ...insertAdSpend, tenantId })
         .onConflictDoUpdate({
           target: [adSpend.campaignId, adSpend.date],
           set: {
@@ -531,11 +658,11 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateAdSpend(id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined> {
+  async updateAdSpend(tenantId: number, id: number, updates: Partial<AdSpend>): Promise<AdSpend | undefined> {
     const [spend] = await db
       .update(adSpend)
       .set(updates)
-      .where(eq(adSpend.id, id))
+      .where(and(eq(adSpend.tenantId, tenantId), eq(adSpend.id, id)))
       .returning();
     return spend || undefined;
   }
@@ -546,20 +673,26 @@ export class DatabaseStorage implements IStorage {
     return conversion || undefined;
   }
 
-  async getConversionsByClickId(clickId: string): Promise<Conversion[]> {
-    return await db.select().from(conversions).where(eq(conversions.clickId, clickId));
+  async getConversionsByClickId(tenantId: number, clickId: string): Promise<Conversion[]> {
+    return await db
+      .select()
+      .from(conversions)
+      .where(and(eq(conversions.tenantId, tenantId), eq(conversions.clickId, clickId)));
   }
 
-  async createConversion(insertConversion: InsertConversion): Promise<Conversion> {
+  async createConversion(tenantId: number, insertConversion: InsertConversion): Promise<Conversion> {
     const [conversion] = await db
       .insert(conversions)
-      .values(insertConversion)
+      .values({ ...insertConversion, tenantId })
       .returning();
     return conversion;
   }
 
-  async getConversionsByCampaignId(campaignId: string): Promise<Conversion[]> {
-    const clicksForCampaign = await db.select().from(clicks).where(eq(clicks.campaignId, campaignId));
+  async getConversionsByCampaignId(tenantId: number, campaignId: string): Promise<Conversion[]> {
+    const clicksForCampaign = await db
+      .select()
+      .from(clicks)
+      .where(and(eq(clicks.tenantId, tenantId), eq(clicks.campaignId, campaignId)));
     const clickIds = clicksForCampaign.map(c => c.clickId);
     
     if (clickIds.length === 0) return [];
@@ -567,40 +700,49 @@ export class DatabaseStorage implements IStorage {
     // Get all conversions for these clicks
     const campaignConversions = await db
       .select()
-      .from(conversions);
+      .from(conversions)
+      .where(eq(conversions.tenantId, tenantId));
     
     return campaignConversions.filter(conv => clickIds.includes(conv.clickId));
   }
 
+  async getConversionsByTenant(tenantId: number): Promise<Conversion[]> {
+    return await db.select().from(conversions).where(eq(conversions.tenantId, tenantId));
+  }
+
   // Campaign Settings
-  async getCampaignSettings(campaignId: string): Promise<CampaignSettings | undefined> {
+  async getCampaignSettings(tenantId: number, campaignId: string): Promise<CampaignSettings | undefined> {
     const [settings] = await db
       .select()
       .from(campaignSettings)
-      .where(eq(campaignSettings.campaignId, campaignId));
+      .where(and(eq(campaignSettings.tenantId, tenantId), eq(campaignSettings.campaignId, campaignId)));
     return settings || undefined;
   }
 
-  async createCampaignSettings(insertSettings: InsertCampaignSettings): Promise<CampaignSettings> {
+  async createCampaignSettings(tenantId: number, insertSettings: InsertCampaignSettings): Promise<CampaignSettings> {
     const [settings] = await db
       .insert(campaignSettings)
-      .values(insertSettings)
+      .values({ ...insertSettings, tenantId })
       .returning();
     return settings;
   }
 
-  async updateCampaignSettings(campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined> {
+  async getCampaignSettingsByTenant(tenantId: number): Promise<CampaignSettings[]> {
+    return await db.select().from(campaignSettings).where(eq(campaignSettings.tenantId, tenantId));
+  }
+
+  async updateCampaignSettings(tenantId: number, campaignId: string, updates: Partial<CampaignSettings>): Promise<CampaignSettings | undefined> {
     const [settings] = await db
       .update(campaignSettings)
       .set(updates)
-      .where(eq(campaignSettings.campaignId, campaignId))
+      .where(and(eq(campaignSettings.tenantId, tenantId), eq(campaignSettings.campaignId, campaignId)))
       .returning();
     return settings || undefined;
   }
 
   // Geographic Analytics Implementation
-  async getClicksGroupedByCountry(startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
-    const conditions = [];
+  async getClicksGroupedByCountry(tenantId: number, startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
+    const conditions = [eq(clicks.tenantId, tenantId)];
     if (startDate) conditions.push(gte(clicks.createdAt, startDate));
     if (endDate) conditions.push(lte(clicks.createdAt, endDate));
 
@@ -627,8 +769,8 @@ export class DatabaseStorage implements IStorage {
       }));
   }
 
-  async getClicksGroupedByRegion(startDate?: Date, endDate?: Date): Promise<RegionStats[]> {
-    const conditions = [];
+  async getClicksGroupedByRegion(tenantId: number, startDate?: Date, endDate?: Date): Promise<RegionStats[]> {
+    const conditions = [eq(clicks.tenantId, tenantId)];
     if (startDate) conditions.push(gte(clicks.createdAt, startDate));
     if (endDate) conditions.push(lte(clicks.createdAt, endDate));
 
@@ -655,8 +797,8 @@ export class DatabaseStorage implements IStorage {
       }));
   }
 
-  async getClicksGroupedByCity(startDate?: Date, endDate?: Date): Promise<CityStats[]> {
-    const conditions = [];
+  async getClicksGroupedByCity(tenantId: number, startDate?: Date, endDate?: Date): Promise<CityStats[]> {
+    const conditions = [eq(clicks.tenantId, tenantId)];
     if (startDate) conditions.push(gte(clicks.createdAt, startDate));
     if (endDate) conditions.push(lte(clicks.createdAt, endDate));
 
@@ -685,8 +827,8 @@ export class DatabaseStorage implements IStorage {
       }));
   }
 
-  async getClicksGroupedByDevice(startDate?: Date, endDate?: Date): Promise<DeviceStats[]> {
-    const conditions = [];
+  async getClicksGroupedByDevice(tenantId: number, startDate?: Date, endDate?: Date): Promise<DeviceStats[]> {
+    const conditions = [eq(clicks.tenantId, tenantId)];
     if (startDate) conditions.push(gte(clicks.createdAt, startDate));
     if (endDate) conditions.push(lte(clicks.createdAt, endDate));
 
@@ -711,8 +853,8 @@ export class DatabaseStorage implements IStorage {
       }));
   }
 
-  async getClicksGroupedByTimezone(startDate?: Date, endDate?: Date): Promise<TimezoneStats[]> {
-    const conditions = [];
+  async getClicksGroupedByTimezone(tenantId: number, startDate?: Date, endDate?: Date): Promise<TimezoneStats[]> {
+    const conditions = [eq(clicks.tenantId, tenantId)];
     if (startDate) conditions.push(gte(clicks.createdAt, startDate));
     if (endDate) conditions.push(lte(clicks.createdAt, endDate));
 
@@ -737,12 +879,12 @@ export class DatabaseStorage implements IStorage {
       }));
   }
 
-  async getTopCountries(limit: number = 10, startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
-    const countryStats = await this.getClicksGroupedByCountry(startDate, endDate);
+  async getTopCountries(tenantId: number, limit: number = 10, startDate?: Date, endDate?: Date): Promise<CountryStats[]> {
+    const countryStats = await this.getClicksGroupedByCountry(tenantId, startDate, endDate);
     return countryStats.slice(0, limit);
   }
 
-  async getPerformanceSummary(startDate?: Date, endDate?: Date): Promise<PerformanceSummary> {
+  async getPerformanceSummary(tenantId: number, startDate?: Date, endDate?: Date): Promise<PerformanceSummary> {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
@@ -760,20 +902,21 @@ export class DatabaseStorage implements IStorage {
     // Get spend data for different periods
     const todaySpend = await db.select({ spend: adSpend.spend })
       .from(adSpend)
-      .where(eq(sql`DATE(${adSpend.date})`, todayStr));
+      .where(and(eq(adSpend.tenantId, tenantId), eq(sql`DATE(${adSpend.date})`, todayStr)));
 
     const yesterdaySpend = await db.select({ spend: adSpend.spend })
       .from(adSpend)
-      .where(eq(sql`DATE(${adSpend.date})`, yesterdayStr));
+      .where(and(eq(adSpend.tenantId, tenantId), eq(sql`DATE(${adSpend.date})`, yesterdayStr)));
 
     const thisMonthSpend = await db.select({ spend: adSpend.spend })
       .from(adSpend)
-      .where(gte(sql`DATE(${adSpend.date})`, thisMonthStr));
+      .where(and(eq(adSpend.tenantId, tenantId), gte(sql`DATE(${adSpend.date})`, thisMonthStr)));
 
     const lastMonthSpend = await db.select({ spend: adSpend.spend })
       .from(adSpend)
       .where(
         and(
+          eq(adSpend.tenantId, tenantId),
           gte(sql`DATE(${adSpend.date})`, lastMonthStartStr),
           lte(sql`DATE(${adSpend.date})`, lastMonthEndStr)
         )
@@ -782,20 +925,21 @@ export class DatabaseStorage implements IStorage {
     // Get revenue data for different periods
     const todayRevenue = await db.select({ value: conversions.value })
       .from(conversions)
-      .where(eq(sql`DATE(${conversions.createdAt})`, todayStr));
+      .where(and(eq(conversions.tenantId, tenantId), eq(sql`DATE(${conversions.createdAt})`, todayStr)));
 
     const yesterdayRevenue = await db.select({ value: conversions.value })
       .from(conversions)
-      .where(eq(sql`DATE(${conversions.createdAt})`, yesterdayStr));
+      .where(and(eq(conversions.tenantId, tenantId), eq(sql`DATE(${conversions.createdAt})`, yesterdayStr)));
 
     const thisMonthRevenue = await db.select({ value: conversions.value })
       .from(conversions)
-      .where(gte(sql`DATE(${conversions.createdAt})`, thisMonthStr));
+      .where(and(eq(conversions.tenantId, tenantId), gte(sql`DATE(${conversions.createdAt})`, thisMonthStr)));
 
     const lastMonthRevenue = await db.select({ value: conversions.value })
       .from(conversions)
       .where(
         and(
+          eq(conversions.tenantId, tenantId),
           gte(sql`DATE(${conversions.createdAt})`, lastMonthStartStr),
           lte(sql`DATE(${conversions.createdAt})`, lastMonthEndStr)
         )
@@ -825,7 +969,7 @@ export class DatabaseStorage implements IStorage {
     return { spend, revenue, roas };
   }
 
-  async getBestPerformingCampaigns(period: 'today' | 'yesterday', limit: number = 3): Promise<CampaignPerformance[]> {
+  async getBestPerformingCampaigns(tenantId: number, period: 'today' | 'yesterday', limit: number = 3): Promise<CampaignPerformance[]> {
     const targetDate = new Date();
     if (period === 'yesterday') {
       targetDate.setDate(targetDate.getDate() - 1);
@@ -833,7 +977,7 @@ export class DatabaseStorage implements IStorage {
     const dateStr = targetDate.toISOString().split('T')[0];
 
     // Get all campaigns first
-    const allCampaigns = await db.select().from(campaigns);
+    const allCampaigns = await db.select().from(campaigns).where(eq(campaigns.tenantId, tenantId));
     
     const results: CampaignPerformance[] = [];
     
@@ -843,6 +987,7 @@ export class DatabaseStorage implements IStorage {
         .from(clicks)
         .where(
           and(
+            eq(clicks.tenantId, tenantId),
             eq(clicks.campaignId, campaign.campaignId),
             eq(sql`DATE(${clicks.createdAt})`, dateStr)
           )
@@ -866,6 +1011,7 @@ export class DatabaseStorage implements IStorage {
         .from(adSpend)
         .where(
           and(
+            eq(adSpend.tenantId, tenantId),
             eq(adSpend.campaignId, campaign.campaignId),
             eq(sql`DATE(${adSpend.date})`, dateStr)
           )
@@ -888,7 +1034,7 @@ export class DatabaseStorage implements IStorage {
       .slice(0, limit);
   }
 
-  async getBestPerformingAds(limit: number = 10): Promise<AdPerformance[]> {
+  async getBestPerformingAds(tenantId: number, limit: number = 10): Promise<AdPerformance[]> {
     try {
       // Otimized query using single JOIN instead of N+1 queries
       const results = await db
@@ -900,8 +1046,8 @@ export class DatabaseStorage implements IStorage {
           revenue: sql`COALESCE(SUM(CAST(${conversions.value} AS DECIMAL)), 0)`.as('revenue'),
         })
         .from(clicks)
-        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
-        .where(or(isNotNull(clicks.sub4), isNotNull(clicks.sub1)))
+        .leftJoin(conversions, and(eq(conversions.clickId, clicks.clickId), eq(conversions.tenantId, tenantId)))
+        .where(and(eq(clicks.tenantId, tenantId), or(isNotNull(clicks.sub4), isNotNull(clicks.sub1))))
         .groupBy(clicks.sub4, clicks.sub1)
         .orderBy(desc(sql`revenue`), desc(sql`conversions`))
         .limit(limit);
@@ -920,7 +1066,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getBestTrafficChannels(limit: number = 10): Promise<ChannelPerformance[]> {
+  async getBestTrafficChannels(tenantId: number, limit: number = 10): Promise<ChannelPerformance[]> {
     try {
       // Optimized query using single JOIN instead of N+1 queries
       const results = await db
@@ -931,7 +1077,8 @@ export class DatabaseStorage implements IStorage {
           revenue: sql`COALESCE(SUM(CAST(${conversions.value} AS DECIMAL)), 0)`.as('revenue'),
         })
         .from(clicks)
-        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
+        .leftJoin(conversions, and(eq(conversions.clickId, clicks.clickId), eq(conversions.tenantId, tenantId)))
+        .where(eq(clicks.tenantId, tenantId))
         .groupBy(sql`COALESCE(${clicks.source}, ${clicks.utmSource}, 'direct')`)
         .orderBy(desc(sql`revenue`), desc(sql`conversions`))
         .limit(limit);
@@ -949,7 +1096,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMetricsChart(days: number = 30): Promise<MetricsChartData[]> {
+  async getMetricsChart(tenantId: number, days: number = 30): Promise<MetricsChartData[]> {
     try {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
@@ -962,8 +1109,8 @@ export class DatabaseStorage implements IStorage {
           conversions: sql`COUNT(${conversions.id})`.as('conversions'),
         })
         .from(clicks)
-        .leftJoin(conversions, eq(conversions.clickId, clicks.clickId))
-        .where(gte(clicks.createdAt, startDate))
+        .leftJoin(conversions, and(eq(conversions.clickId, clicks.clickId), eq(conversions.tenantId, tenantId)))
+        .where(and(eq(clicks.tenantId, tenantId), gte(clicks.createdAt, startDate)))
         .groupBy(sql`DATE(${clicks.createdAt})`)
         .orderBy(sql`DATE(${clicks.createdAt})`);
 

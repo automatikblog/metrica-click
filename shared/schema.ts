@@ -1,9 +1,63 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, date, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, date, unique, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Tenants table - empresas/organizações
+export const tenants = pgTable("tenants", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull().unique(),
+  domain: text("domain").unique(),
+  subscriptionPlan: text("subscription_plan").notNull().default("basic"),
+  subscriptionStatus: text("subscription_status").notNull().default("trial"),
+  maxCampaigns: integer("max_campaigns").default(5),
+  maxMonthlyClicks: integer("max_monthly_clicks").default(10000),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Users table - sistema multiusuário
+export const usersNew = pgTable("users_new", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  password: text("password").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  role: text("role").notNull().default("viewer"),
+  status: text("status").notNull().default("active"),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+}, (table) => ({
+  uniqueTenantEmail: unique().on(table.tenantId, table.email)
+}));
+
+// User invitations
+export const userInvitations = pgTable("user_invitations", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("viewer"),
+  invitedBy: integer("invited_by").notNull().references(() => usersNew.id),
+  token: text("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// User sessions
+export const userSessions = pgTable("user_sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => usersNew.id, { onDelete: "cascade" }),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const campaigns = pgTable("campaigns", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   campaignId: text("campaign_id").notNull().unique(),
   status: text("status").notNull().default("active"),
@@ -11,10 +65,13 @@ export const campaigns = pgTable("campaigns", {
   totalRevenue: decimal("total_revenue", { precision: 10, scale: 2 }).default("0"),
   conversionCount: integer("conversion_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+}, (table) => ({
+  tenantCampaignIdx: unique().on(table.tenantId, table.campaignId)
+}));
 
 export const clicks = pgTable("clicks", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   clickId: text("click_id").notNull().unique(),
   campaignId: text("campaign_id").notNull(),
   source: text("source"),
@@ -71,6 +128,7 @@ export const clicks = pgTable("clicks", {
 
 export const pageViews = pgTable("page_views", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   clickId: text("click_id").notNull(),
   referrer: text("referrer"),
   userAgent: text("user_agent"),
@@ -110,6 +168,7 @@ export const users = pgTable("users", {
 // Ad spend data from Facebook
 export const adSpend = pgTable("ad_spend", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   campaignId: text("campaign_id").notNull(),
   date: date("date").notNull(),
   spend: decimal("spend", { precision: 10, scale: 2 }).notNull(),
@@ -127,6 +186,7 @@ export const adSpend = pgTable("ad_spend", {
 // Conversion tracking
 export const conversions = pgTable("conversions", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   clickId: text("click_id"), // Allow null for direct conversions (Hotmart without tracking)
   conversionType: text("conversion_type").notNull(), // 'purchase', 'lead', 'signup', etc.
   value: decimal("value", { precision: 10, scale: 2 }),
@@ -137,6 +197,7 @@ export const conversions = pgTable("conversions", {
 // Campaign settings for cost tracking
 export const campaignSettings = pgTable("campaign_settings", {
   id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
   campaignId: text("campaign_id").notNull().unique(),
   dailyBudget: decimal("daily_budget", { precision: 10, scale: 2 }),
   lifetimeBudget: decimal("lifetime_budget", { precision: 10, scale: 2 }),
@@ -202,3 +263,36 @@ export type InsertConversion = z.infer<typeof insertConversionSchema>;
 export type Conversion = typeof conversions.$inferSelect;
 export type InsertCampaignSettings = z.infer<typeof insertCampaignSettingsSchema>;
 export type CampaignSettings = typeof campaignSettings.$inferSelect;
+
+// New types for multiuser system
+export const insertTenantSchema = createInsertSchema(tenants).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUserNewSchema = createInsertSchema(usersNew).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastLogin: true,
+});
+
+export const insertUserInvitationSchema = createInsertSchema(userInvitations).omit({
+  id: true,
+  createdAt: true,
+  acceptedAt: true,
+});
+
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
+  createdAt: true,
+});
+
+export type InsertTenant = z.infer<typeof insertTenantSchema>;
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertUserNew = z.infer<typeof insertUserNewSchema>;
+export type UserNew = typeof usersNew.$inferSelect;
+export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
