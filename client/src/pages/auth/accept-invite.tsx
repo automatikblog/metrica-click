@@ -9,7 +9,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, UserCheck, Building } from 'lucide-react';
 import { Link } from 'wouter';
-import { apiRequest } from '@/lib/queryClient';
 
 interface InviteData {
   id: number;
@@ -59,7 +58,7 @@ export default function AcceptInvitePage() {
     setIsLoading(true);
 
     try {
-      await apiRequest('/api/auth/accept-invite', {
+      const response = await fetch('/api/auth/accept-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -69,6 +68,11 @@ export default function AcceptInvitePage() {
           password: formData.password,
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to accept invite');
+      }
       
       toast({
         title: "Conta criada com sucesso!",

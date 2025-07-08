@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
 
 interface User {
   id: number;
@@ -65,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await apiRequest('/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,9 +72,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
 
-      if (response.user && response.tenant) {
-        setUser(response.user);
-        setTenant(response.tenant);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
+      const data = await response.json();
+
+      if (data.user && data.tenant) {
+        setUser(data.user);
+        setTenant(data.tenant);
         
         // Invalidar cache e refetch dados
         queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
@@ -89,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (data: RegisterData) => {
     try {
-      const response = await apiRequest('/api/auth/register', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -97,9 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(data),
       });
 
-      if (response.user && response.tenant) {
-        setUser(response.user);
-        setTenant(response.tenant);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
+      }
+
+      const responseData = await response.json();
+
+      if (responseData.user && responseData.tenant) {
+        setUser(responseData.user);
+        setTenant(responseData.tenant);
         
         // Invalidar cache e refetch dados
         queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
@@ -113,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await apiRequest('/api/auth/logout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
       });
     } catch (error) {

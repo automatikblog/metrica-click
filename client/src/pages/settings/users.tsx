@@ -12,7 +12,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, UserPlus, Mail, Crown, Edit, Trash2 } from 'lucide-react';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { apiRequest } from '@/lib/queryClient';
 
 interface User {
   id: number;
@@ -44,7 +43,7 @@ export default function UsersManagementPage() {
   const inviteUser = async () => {
     setIsInviting(true);
     try {
-      await apiRequest('/api/auth/invite', {
+      const response = await fetch('/api/auth/invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -52,6 +51,11 @@ export default function UsersManagementPage() {
           role: inviteRole,
         }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send invite');
+      }
 
       toast({
         title: "Convite enviado!",
@@ -76,11 +80,16 @@ export default function UsersManagementPage() {
   // Mutation para atualizar role do usuário
   const updateUserRole = async (userId: number, newRole: string) => {
     try {
-      await apiRequest(`/api/users/${userId}/role`, {
+      const response = await fetch(`/api/users/${userId}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update role');
+      }
 
       toast({
         title: "Role atualizada",
@@ -102,9 +111,14 @@ export default function UsersManagementPage() {
     if (!confirm('Tem certeza que deseja remover este usuário?')) return;
 
     try {
-      await apiRequest(`/api/users/${userId}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to remove user');
+      }
 
       toast({
         title: "Usuário removido",
