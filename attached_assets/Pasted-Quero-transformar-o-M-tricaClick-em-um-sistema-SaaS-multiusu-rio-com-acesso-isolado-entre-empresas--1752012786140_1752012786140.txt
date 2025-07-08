@@ -1,0 +1,82 @@
+Quero transformar o MétricaClick em um sistema SaaS multiusuário com acesso isolado entre empresas.
+
+Antes de implementar, siga este processo:
+
+---
+
+### 🔍 Etapa 1 – Análise e Planejamento
+
+1. Analise toda a estrutura atual do projeto (frontend, backend, banco).
+2. Avalie como as campanhas, scripts, métricas, sincronizações e acessos estão associados atualmente.
+3. Planeje como separar os dados de cada empresa de forma segura e escalável.
+4. Escreva todas as instruções detalhadas em um arquivo chamado `Instructions-saas-multiuser.md`, contendo:
+
+   - Relacionamentos entre usuários e dados
+   - Tabelas a serem criadas ou alteradas
+   - Regras de autorização e escopo
+   - Camadas que precisam de adaptação (API, frontend, banco)
+   - Arquivos que serão modificados
+
+---
+
+### 🧩 Requisitos para Multiusuário
+
+Crie um sistema de contas com **acesso isolado por empresa**, com os seguintes vínculos:
+
+1. **Login multiusuário com autenticação segura**
+   - Autenticação por e-mail e senha
+   - Criação de conta de empresa (tenant)
+   - Convite e gestão de usuários por empresa (admin, editor etc.)
+
+2. **Isolamento por Tenant**
+   Cada empresa deve visualizar **apenas seus próprios dados**:
+   - Campanhas
+   - Scripts de tracking
+   - Métricas e relatórios
+   - Conversões
+   - Clicks
+   - Sincronizações (ex: Facebook Ads)
+   - Logs de acesso e eventos
+
+3. **Permissões e Acessos**
+   Controle de papéis por usuário:
+   - `admin`: total acesso à conta
+   - `editor`: pode criar e editar campanhas, mas não gerenciar usuários
+   - `viewer`: acesso somente leitura
+
+4. **Identificação de Tenant**
+   - Toda requisição à API e renderização de dashboard deve usar o `tenant_id` (empresa)
+   - Associar dados existentes à empresa logada (migração inicial pode assumir empresa padrão)
+
+---
+
+### 🔐 Segurança
+
+- Proteja todos os endpoints com verificação de autenticação
+- Bloqueie acesso cruzado de dados entre empresas
+- Use middleware para validar o `tenant_id` em todas as rotas de dados
+
+---
+
+### 💾 Estrutura recomendada (banco)
+
+- `users` (com coluna `tenant_id`)
+- `tenants` (empresas)
+- `campaigns` (com `tenant_id`)
+- `clicks`, `conversions`, `scripts`, `spends`, `integrations`, `logs` etc. → todos com `tenant_id`
+
+---
+
+### 🧪 Após a análise
+
+No final da análise, gere o arquivo `Instructions-saas-multiuser.md` contendo:
+
+- Resumo da arquitetura SaaS
+- Estrutura das tabelas com chaves de isolamento
+- Middleware de autenticação e escopo
+- Lista de arquivos a serem modificados
+- Notas de migração (como associar os dados já existentes à primeira conta)
+
+---
+
+⚠️ **Importante**: não inicie a implementação ainda. Apenas entregue o plano completo no arquivo `.md` para revisão e validação.
