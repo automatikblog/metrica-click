@@ -139,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setTenant(null);
       queryClient.clear();
-      window.location.href = '/login';
+      // The router will automatically redirect to login when isAuthenticated becomes false
     }
   };
 

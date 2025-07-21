@@ -41,13 +41,7 @@ function Router() {
           <Route path="/login" component={LoginPage} />
           <Route path="/register" component={RegisterPage} />
           <Route path="/accept-invite" component={AcceptInvitePage} />
-          <Route>
-            {/* Redirecionar qualquer outra rota para login */}
-            {() => {
-              window.location.href = '/login';
-              return null;
-            }}
-          </Route>
+          <Route component={LoginPage} />
         </Switch>
       </div>
     );

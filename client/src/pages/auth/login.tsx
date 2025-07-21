@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Eye, EyeOff, LogIn } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -16,6 +16,7 @@ export default function LoginPage() {
   
   const { login } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,9 +30,9 @@ export default function LoginPage() {
         description: "Redirecionando para o dashboard...",
       });
       
-      // Redirect será feito automaticamente pelo AuthContext
+      // Use proper routing instead of window.location.href
       setTimeout(() => {
-        window.location.href = '/';
+        setLocation('/');
       }, 500);
       
     } catch (error: any) {
