@@ -26,7 +26,13 @@ export function CountryPerformanceChart({ data }: CountryMapProps) {
     );
   }
 
-  const top5Countries = data.slice(0, 5);
+  // Convert string clickCount to number for chart rendering
+  const chartData = data.map(country => ({
+    ...country,
+    clickCount: parseInt(country.clickCount as string) || 0
+  }));
+
+  const top5Countries = chartData.slice(0, 5);
 
   return (
     <Card>
@@ -98,6 +104,13 @@ export function DevicePerformanceChart({ data }: { data: DeviceStats[] }) {
     );
   }
 
+  // Convert string values to numbers for chart rendering
+  const chartData = data.map(device => ({
+    ...device,
+    clickCount: parseInt(device.clickCount as string) || 0,
+    conversionCount: parseInt(device.conversionCount as string) || 0
+  }));
+
   return (
     <Card>
       <CardHeader>
@@ -106,7 +119,7 @@ export function DevicePerformanceChart({ data }: { data: DeviceStats[] }) {
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data}>
+          <BarChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               dataKey="deviceType" 
@@ -129,7 +142,7 @@ export function DevicePerformanceChart({ data }: { data: DeviceStats[] }) {
         
         {/* Device Stats Summary */}
         <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {data.map((device) => (
+          {chartData.map((device) => (
             <div key={device.deviceType} className="text-center p-3 bg-gray-50 rounded-lg">
               <div className="font-medium capitalize">{device.deviceType}</div>
               <div className="text-sm text-gray-600">
