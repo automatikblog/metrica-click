@@ -683,7 +683,13 @@ export class DatabaseStorage implements IStorage {
   async createConversion(tenantId: number, insertConversion: InsertConversion): Promise<Conversion> {
     const [conversion] = await db
       .insert(conversions)
-      .values({ ...insertConversion, tenantId })
+      .values({
+        tenantId,
+        clickId: insertConversion.clickId,
+        conversionType: insertConversion.conversionType,
+        value: insertConversion.value,
+        currency: insertConversion.currency || 'BRL'
+      })
       .returning();
     return conversion;
   }

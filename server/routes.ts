@@ -887,7 +887,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const pageViews = await storage.getAllPageViews();
       const campaigns = await storage.getAllCampaigns();
       const conversions = await Promise.all(
-        campaigns.map(c => storage.getConversionsByCampaignId(c.campaignId))
+        campaigns.map(c => storage.getConversionsByCampaignId(1, c.campaignId)) // tenantId = 1 for AutomatikBlog
       );
       const totalConversions = conversions.flat().length;
 
@@ -898,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const end = new Date(endDate as string);
         
         const allSpendData = await Promise.all(
-          campaigns.map(c => storage.getAdSpend(c.campaignId, start, end))
+          campaigns.map(c => storage.getAdSpend(1, c.campaignId, start, end)) // tenantId = 1 for AutomatikBlog
         );
         totalSpend = allSpendData.flat().reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
       } else {
@@ -953,7 +953,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create conversion
-      const conversion = await storage.createConversion({
+      const conversion = await storage.createConversion(1, {
         clickId,
         conversionType,
         value: value ? String(value) : null,
@@ -961,7 +961,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Update click with conversion data
-      await storage.updateClick(clickId, {
+      await storage.updateClick(1, clickId, {
         conversionValue: value ? String(value) : null,
         convertedAt: new Date()
       });
@@ -1027,7 +1027,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`[WEBHOOK-${webhookId}] Found click record: ${click.clickId} for campaign: ${click.campaignId}`);
         
         // 3. Check for duplicate conversion
-        const existingConversions = await storage.getConversionsByClickId(click.clickId);
+        const existingConversions = await storage.getConversionsByClickId(1, click.clickId); // tenantId = 1 for AutomatikBlog
         if (existingConversions.length > 0) {
           console.log(`[WEBHOOK-${webhookId}] Duplicate conversion detected, returning existing conversion`);
           return res.json({ 
@@ -1047,7 +1047,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[WEBHOOK-${webhookId}] Normalized conversion data:`, conversionData);
       
       // 5. Save conversion
-      const conversion = await storage.createConversion(conversionData);
+      const conversion = await storage.createConversion(1, conversionData); // tenantId = 1 for AutomatikBlog
       console.log(`[WEBHOOK-${webhookId}] Created conversion: ${conversion.id}`);
       
       // 6. Update campaign metrics (if we have a click/campaign)
