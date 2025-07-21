@@ -817,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const start = startDate ? new Date(startDate as string) : undefined;
       const end = endDate ? new Date(endDate as string) : undefined;
       
-      const deviceStats = await storage.getClicksGroupedByDevice(start, end);
+      const deviceStats = await storage.getClicksGroupedByDevice(1, start, end);
       
       res.json(deviceStats);
     } catch (error) {
@@ -839,7 +839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const campaignsWithSpend = await Promise.all(
           campaigns.map(async (campaign) => {
-            const adSpendData = await storage.getAdSpend(campaign.campaignId, start, end);
+            const adSpendData = await storage.getAdSpend(1, campaign.campaignId, start, end);
             const totalSpend = adSpendData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
             
             return {
@@ -947,7 +947,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Verify click exists
-      const click = await storage.getClickByClickId(clickId);
+      const click = await storage.getClickByClickId(1, clickId);
       if (!click) {
         return res.status(404).json({ error: "Click not found" });
       }
@@ -967,9 +967,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Update campaign totals
-      const campaign = await storage.getCampaignByCampaignId(click.campaignId);
+      const campaign = await storage.getCampaignByCampaignId(1, click.campaignId);
       if (campaign) {
-        await storage.updateCampaign(click.campaignId, {
+        await storage.updateCampaign(1, click.campaignId, {
           totalRevenue: String(parseFloat(campaign.totalRevenue || "0") + (value || 0)),
           conversionCount: (campaign.conversionCount || 0) + 1
         });

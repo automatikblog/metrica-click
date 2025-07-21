@@ -18,17 +18,15 @@ interface PerformanceDashboardProps {
 export function PerformanceDashboard({ 
   dateRange, 
   onDateRangeChange 
-}: PerformanceDashboardProps) {
-  const [localDateRange, setLocalDateRange] = useState<DateRange>(
-    dateRange || {
-      from: subDays(new Date(), 29),
-      to: new Date(),
-      preset: "30d"
-    }
-  );
+}: PerformanceDashboardProps = {}) {
+  const [localDateRange, setLocalDateRange] = useState<DateRange>({
+    from: subDays(new Date(), 29),
+    to: new Date(),
+    preset: "30d"
+  });
 
   const { data: performanceSummary, isLoading: summaryLoading } = usePerformanceSummary({
-    dateRange: localDateRange,
+    dateRange: dateRange || localDateRange,
     refetchInterval: 30000
   });
 
@@ -53,19 +51,21 @@ export function PerformanceDashboard({
           </p>
         </div>
         
-        <div className="flex items-center space-x-4">
-          <DateRangeSelector
-            value={localDateRange}
-            onChange={handleDateRangeChange}
-            className="mr-4"
-          />
-          
-          {/* Future: Add more filters here */}
-          <div className="flex items-center space-x-2 text-gray-500">
-            <Filter className="h-4 w-4" />
-            <span className="text-sm">Mais filtros em breve</span>
+        {onDateRangeChange && (
+          <div className="flex items-center space-x-4">
+            <DateRangeSelector
+              value={dateRange || localDateRange}
+              onChange={handleDateRangeChange}
+              className="mr-4"
+            />
+            
+            {/* Future: Add more filters here */}
+            <div className="flex items-center space-x-2 text-gray-500">
+              <Filter className="h-4 w-4" />
+              <span className="text-sm">Mais filtros em breve</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Performance Summary Cards */}
