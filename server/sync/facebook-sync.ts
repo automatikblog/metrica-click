@@ -24,6 +24,7 @@ export class FacebookSyncService {
   private isRunning: boolean = false;
   private lastSyncTime: Date | null = null;
   private syncHistory: SyncResult[] = [];
+  private defaultTenantId: number = 1; // Default tenant for Facebook sync operations
 
   constructor() {
     this.scheduleDailySync();
@@ -93,7 +94,7 @@ export class FacebookSyncService {
       const campaignsToSync = [];
 
       for (const campaign of allCampaigns) {
-        const settings = await storage.getCampaignSettings(campaign.campaignId);
+        const settings = await storage.getCampaignSettings(this.defaultTenantId, campaign.campaignId);
         if (settings?.fbCampaignId) {
           campaignsToSync.push({
             internal: campaign,
@@ -198,7 +199,7 @@ export class FacebookSyncService {
       );
 
       // Get updated spend data to calculate totals
-      const spendData = await storage.getAdSpend(internalCampaignId);
+      const spendData = await storage.getAdSpend(this.defaultTenantId, internalCampaignId);
       const totalSpend = spendData.reduce((sum, spend) => sum + parseFloat(spend.spend), 0);
 
       return {
@@ -227,7 +228,7 @@ export class FacebookSyncService {
       console.log(`[FB-SYNC] Manual sync requested for campaign: ${campaignId}`);
       
       // Get campaign settings
-      const settings = await storage.getCampaignSettings(campaignId);
+      const settings = await storage.getCampaignSettings(this.defaultTenantId, campaignId);
       if (!settings?.fbCampaignId) {
         throw new Error('Campaign not connected to Facebook');
       }
@@ -293,16 +294,21 @@ export class FacebookSyncService {
     try {
       this.isRunning = true;
       const campaigns = await storage.getAllCampaigns();
-      const connectedCampaigns = campaigns.filter(c => c.facebookCampaignId);
       
-      for (const campaign of connectedCampaigns) {
-        const facebookClient = await createFacebookClient('default');
-        if (facebookClient && campaign.facebookCampaignId) {
+      const facebookClient = await createFacebookClient('default');
+      if (!facebookClient) {
+        throw new Error('Failed to create Facebook client');
+      }
+      
+      for (const campaign of campaigns) {
+        // Get campaign settings to check for Facebook integration
+        const settings = await storage.getCampaignSettings(this.defaultTenantId, campaign.campaignId);
+        if (settings?.fbCampaignId) {
           // Sync last 2 days only for incremental updates
           const dateRange = getDateRange(2);
           await facebookClient.syncCampaignData(
             campaign.campaignId,
-            campaign.facebookCampaignId,
+            settings.fbCampaignId,
             dateRange
           );
         }
@@ -323,7 +329,7 @@ export class FacebookSyncService {
   async upsertAdSpendWithRetry(adSpendData: any, maxRetries: number = 3): Promise<void> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        await storage.upsertAdSpend(adSpendData);
+        await storage.upsertAdSpend(this.defaultTenantId, adSpendData);
         console.log(`[FB-SYNC] ✅ Upserted spend: $${adSpendData.spend} for ${adSpendData.date}`);
         return;
       } catch (error: any) {
@@ -379,9 +385,7 @@ export class FacebookSyncService {
           spend: data.spend.toString(),
           impressions: data.impressions,
           reach: data.reach,
-          clicks: data.clicks,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          clicks: data.clicks
         };
 
         await this.upsertAdSpendWithRetry(adSpendData);
@@ -437,12 +441,10 @@ export class FacebookSyncService {
           spend: data.spend.toString(),
           impressions: data.impressions,
           reach: data.reach,
-          clicks: data.clicks,
-          createdAt: new Date(),
-          updatedAt: new Date()
+          clicks: data.clicks
         };
 
-        await storage.upsertAdSpend(adSpendData);
+        await storage.upsertAdSpend(this.defaultTenantId, adSpendData);
         console.log(`[FB-SYNC] Upserted yesterday's spend: $${data.spend} for ${data.date}`);
       }
 
