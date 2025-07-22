@@ -567,8 +567,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const timestamp = Date.now();
       const clickId = `mc_${campaignID}_${timestamp}`;
 
-      // Get client IP and User-Agent
-      const clientIp = req.ip || req.connection.remoteAddress || '';
+      // Get real client IP (handle proxy headers for real user IP)
+      const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0] || 
+                       req.headers['x-real-ip']?.toString() ||
+                       req.ip || 
+                       req.connection.remoteAddress || 
+                       req.socket.remoteAddress || '';
       const userAgent = req.headers["user-agent"] || '';
       
       // Get geolocation data
@@ -657,8 +661,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Click not found" });
       }
 
-      // Get client IP and User-Agent for page view
-      const clientIp = req.ip || req.connection.remoteAddress || '';
+      // Get real client IP (handle proxy headers for real user IP)
+      const clientIp = req.headers['x-forwarded-for']?.toString().split(',')[0] || 
+                       req.headers['x-real-ip']?.toString() ||
+                       req.ip || 
+                       req.connection.remoteAddress || 
+                       req.socket.remoteAddress || '';
       const userAgent = req.headers["user-agent"] || '';
       
       // Get geolocation data

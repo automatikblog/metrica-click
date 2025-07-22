@@ -17,8 +17,16 @@ const geoCache = new Map<string, { data: GeoLocationData | null; timestamp: numb
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 export async function getGeoLocation(ip: string): Promise<GeoLocationData | null> {
-  // Skip private/local IPs
+  // Skip private/local IPs but allow debugging
   if (!ip || ip === '127.0.0.1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+    console.log(`[GEO] Skipping private IP: ${ip} - using fallback service`);
+    
+    // For development/testing with private IPs, use a different approach
+    if (ip.startsWith('172.31.') || ip.startsWith('10.') || ip === '127.0.0.1') {
+      // Try to get public IP using a fallback service
+      return await getFallbackGeoLocation();
+    }
+    
     return null;
   }
 
@@ -47,7 +55,8 @@ export async function getGeoLocation(ip: string): Promise<GeoLocationData | null
     
     const data = await response.json();
     
-    if (data.status === 'success') {
+    // Check if response has data (ip-api can return data without status field)
+    if (data.status === 'success' || data.country) {
       const geoData: GeoLocationData = {
         country: data.country || null,
         countryCode: data.countryCode || null,
@@ -68,13 +77,55 @@ export async function getGeoLocation(ip: string): Promise<GeoLocationData | null
       console.log(`[GEO] Success for ${ip}: ${geoData.country}, ${geoData.city}`);
       return geoData;
     } else {
-      console.log(`[GEO] API returned error for ${ip}: ${data.message}`);
+      console.log(`[GEO] API returned error for ${ip}: ${data.message || data.status || 'unknown error'}`);
       geoCache.set(ip, { data: null, timestamp: Date.now() });
       return null;
     }
   } catch (error) {
     console.error(`[GEO] Lookup failed for ${ip}:`, error);
     geoCache.set(ip, { data: null, timestamp: Date.now() });
+    return null;
+  }
+}
+
+// Fallback geolocation for development environments
+async function getFallbackGeoLocation(): Promise<GeoLocationData | null> {
+  try {
+    console.log('[GEO] Using fallback geolocation service...');
+    
+    // Use ipinfo.io which the user mentioned as working
+    const response = await fetch('https://ipinfo.io/json', {
+      timeout: 3000,
+      headers: {
+        'User-Agent': 'MetricaClick-Analytics/1.0'
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    // Map ipinfo.io response to our format
+    const geoData: GeoLocationData = {
+      country: data.country_name || data.country || null,
+      countryCode: data.country || null,
+      region: data.region || null,
+      city: data.city || null,
+      postalCode: data.postal || null,
+      timezone: data.timezone || null,
+      latitude: data.loc ? parseFloat(data.loc.split(',')[0]) : null,
+      longitude: data.loc ? parseFloat(data.loc.split(',')[1]) : null,
+      isp: data.org || null,
+      mobile: false,
+      proxy: false
+    };
+    
+    console.log(`[GEO] Fallback success: ${geoData.country}, ${geoData.city} (${data.ip})`);
+    return geoData;
+  } catch (error) {
+    console.error('[GEO] Fallback failed:', error);
     return null;
   }
 }
