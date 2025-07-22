@@ -765,10 +765,9 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sql`count(*)`));
 
     return results
-      .filter(r => r.country && r.countryCode)
       .map(r => ({
-        country: r.country!,
-        countryCode: r.countryCode!,
+        country: r.country || 'Não identificado',
+        countryCode: r.countryCode || 'XX',
         clickCount: r.clickCount,
         conversionCount: r.conversionCount,
         conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0
@@ -850,9 +849,8 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sql`count(*)`));
 
     return results
-      .filter(r => r.deviceType)
       .map(r => ({
-        deviceType: r.deviceType!,
+        deviceType: r.deviceType || 'unknown',
         clickCount: r.clickCount,
         conversionCount: r.conversionCount,
         conversionRate: r.clickCount > 0 ? (r.conversionCount / r.clickCount) * 100 : 0

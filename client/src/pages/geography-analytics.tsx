@@ -9,9 +9,9 @@ import { Globe, Smartphone, Clock, MapPin } from "lucide-react";
 
 export default function GeographyAnalytics() {
   const [dateRange, setDateRange] = useState<DateRange>({
-    from: subDays(new Date(), 29),
+    from: subDays(new Date(), 7),
     to: new Date(),
-    preset: "30d"
+    preset: "7d"
   });
   
   const { data: geoData, isLoading, error } = useGeography({ dateRange });
