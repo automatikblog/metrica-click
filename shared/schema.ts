@@ -296,3 +296,51 @@ export type InsertUserInvitation = z.infer<typeof insertUserInvitationSchema>;
 export type UserInvitation = typeof userInvitations.$inferSelect;
 export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
 export type UserSession = typeof userSessions.$inferSelect;
+
+// Leads table for lead capture and tracking
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  tenantId: integer("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }),
+  clickId: text("click_id"), // Optional association with click tracking
+  campaignId: text("campaign_id"), // Direct campaign association for tracking
+  
+  // Lead personal information
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  
+  // Lead source tracking
+  source: text("source"), // utm_source, referrer, etc.
+  medium: text("medium"), // utm_medium
+  campaign: text("campaign"), // utm_campaign
+  content: text("content"), // utm_content
+  term: text("term"), // utm_term
+  
+  // Lead qualification and status
+  status: text("status", { enum: ["new", "contacted", "qualified", "converted", "lost"] }).notNull().default("new"),
+  score: integer("score"), // Lead scoring 0-100
+  
+  // Additional data
+  notes: text("notes"),
+  tags: text("tags").array(), // Array of tags for categorization
+  customFields: text("custom_fields"), // JSON string for flexible additional data
+  
+  // Geographic and device information (inherited from click if available)
+  ipAddress: text("ip_address"),
+  country: text("country"),
+  region: text("region"),
+  city: text("city"),
+  
+  // Tracking timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertLeadSchema = createInsertSchema(leads).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Lead = typeof leads.$inferSelect;
+export type InsertLead = z.infer<typeof insertLeadSchema>;

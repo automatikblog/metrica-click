@@ -10,6 +10,7 @@ import {
   usersNew,
   userInvitations,
   userSessions,
+  leads,
   type Campaign, 
   type Click, 
   type PageView, 
@@ -21,6 +22,7 @@ import {
   type UserNew,
   type UserInvitation,
   type UserSession,
+  type Lead,
   type InsertCampaign, 
   type InsertClick, 
   type InsertPageView, 
@@ -31,7 +33,8 @@ import {
   type InsertTenant,
   type InsertUserNew,
   type InsertUserInvitation,
-  type InsertUserSession
+  type InsertUserSession,
+  type InsertLead
 } from "@shared/schema";
 import { eq, sql, gte, lte, and, desc, isNotNull, or } from "drizzle-orm";
 import { db } from "./db";
@@ -1127,6 +1130,101 @@ export class DatabaseStorage implements IStorage {
       console.error('[DB-QUERY] Error in getMetricsChart:', error);
       return [];
     }
+  }
+
+  // Lead Management
+  async createLead(tenantId: number, insertLead: InsertLead): Promise<Lead> {
+    // Get geographic data from associated click if clickId provided
+    let geoData = {};
+    if (insertLead.clickId) {
+      const click = await this.getClickByClickId(tenantId, insertLead.clickId);
+      if (click) {
+        geoData = {
+          ipAddress: click.ipAddress,
+          country: click.country,
+          region: click.region,
+          city: click.city,
+          campaignId: insertLead.campaignId || click.campaignId, // Use click's campaign if not provided
+        };
+      }
+    }
+
+    const [lead] = await db
+      .insert(leads)
+      .values({
+        tenantId,
+        ...insertLead,
+        ...geoData, // Merge geographic data from click
+      })
+      .returning();
+    
+    return lead;
+  }
+
+  async getLeadsByTenant(tenantId: number): Promise<Lead[]> {
+    return await db
+      .select()
+      .from(leads)
+      .where(eq(leads.tenantId, tenantId))
+      .orderBy(desc(leads.createdAt));
+  }
+
+  async getLeadsByCampaign(tenantId: number, campaignId: string): Promise<Lead[]> {
+    return await db
+      .select()
+      .from(leads)
+      .where(and(eq(leads.tenantId, tenantId), eq(leads.campaignId, campaignId)))
+      .orderBy(desc(leads.createdAt));
+  }
+
+  async getLeadByEmail(tenantId: number, email: string): Promise<Lead | undefined> {
+    const [lead] = await db
+      .select()
+      .from(leads)
+      .where(and(eq(leads.tenantId, tenantId), eq(leads.email, email)));
+    return lead || undefined;
+  }
+
+  async updateLeadStatus(tenantId: number, leadId: number, status: string, notes?: string): Promise<Lead | undefined> {
+    const updates: any = { 
+      status, 
+      updatedAt: new Date() 
+    };
+    if (notes) updates.notes = notes;
+
+    const [lead] = await db
+      .update(leads)
+      .set(updates)
+      .where(and(eq(leads.tenantId, tenantId), eq(leads.id, leadId)))
+      .returning();
+    
+    return lead || undefined;
+  }
+
+  async getLeadsCount(tenantId: number): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(leads)
+      .where(eq(leads.tenantId, tenantId));
+    
+    return result[0]?.count || 0;
+  }
+
+  async getLeadsBySource(tenantId: number): Promise<Array<{source: string, count: number}>> {
+    const results = await db
+      .select({
+        source: leads.source,
+        count: sql<number>`count(*)`.as('count')
+      })
+      .from(leads)
+      .where(eq(leads.tenantId, tenantId))
+      .groupBy(leads.source)
+      .orderBy(desc(sql`count(*)`));
+
+    return results.map(r => ({
+      source: r.source || 'Direct',
+      count: r.count
+    }));
   }
 }
 

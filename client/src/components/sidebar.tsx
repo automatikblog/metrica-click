@@ -15,6 +15,7 @@ export function Sidebar() {
     { name: "Campaigns", href: "/campaigns", icon: "fas fa-bullhorn", roles: ['admin', 'editor'] },
     { name: "Analytics", href: "/analytics", icon: "fas fa-chart-bar", roles: ['admin', 'editor', 'viewer'] },
     { name: "Geografia", href: "/geography", icon: "fas fa-globe-americas", roles: ['admin', 'editor', 'viewer'] },
+    { name: "Leads", href: "/leads", icon: "fas fa-users", roles: ['admin', 'editor', 'viewer'] },
     { name: "Integration", href: "/integration", icon: "fas fa-code", roles: ['admin', 'editor'] },
     { name: "Webhook", href: "/webhook", icon: "fas fa-link", roles: ['admin'] },
     { name: "Logs Conversão", href: "/conversion-logs", icon: "fas fa-list-alt", roles: ['admin', 'editor', 'viewer'] },

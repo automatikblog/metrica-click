@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertClickSchema, insertPageViewSchema, insertConversionSchema, conversions } from "@shared/schema";
+import { insertClickSchema, insertPageViewSchema, insertConversionSchema, insertLeadSchema, conversions } from "@shared/schema";
 import { db } from "./db";
 import express from "express";
 import path from "path";
@@ -1251,5 +1251,133 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  // ==========================================
+  // LEADS API ENDPOINTS
+  // ==========================================
+
+  // Create lead via postback (main endpoint for external integrations)
+  app.post("/leads", async (req, res) => {
+    try {
+      const { name, email, phone, click_id, campaign_id, source, medium, campaign, content, term } = req.body;
+
+      if (!name || !email) {
+        return res.status(400).json({ 
+          error: "Name and email are required",
+          details: "Both 'name' and 'email' fields must be provided"
+        });
+      }
+
+      // Default tenant ID - in multi-tenant setup, this would be derived from auth
+      const tenantId = 1;
+
+      // Check if lead already exists (prevent duplicates)
+      const existingLead = await storage.getLeadByEmail(tenantId, email);
+      if (existingLead) {
+        return res.status(409).json({ 
+          error: "Lead already exists",
+          lead: existingLead
+        });
+      }
+
+      // Create lead with postback data
+      const leadData = {
+        tenantId,
+        name,
+        email,
+        phone: phone || null,
+        clickId: click_id || null,
+        campaignId: campaign_id || null,
+        source: source || 'postback',
+        medium: medium || null,
+        campaign: campaign || null,
+        content: content || null,
+        term: term || null,
+        status: 'new' as const
+      };
+
+      const lead = await storage.createLead(tenantId, leadData);
+
+      console.log(`[LEADS] Created lead: ${email} for campaign: ${campaign_id || 'unknown'}`);
+      
+      res.status(201).json({
+        success: true,
+        lead: lead,
+        message: "Lead created successfully"
+      });
+
+    } catch (error) {
+      console.error("Error creating lead:", error);
+      res.status(500).json({ 
+        error: "Internal server error",
+        details: error.message
+      });
+    }
+  });
+
+  // Get all leads for tenant
+  app.get("/api/leads", async (req, res) => {
+    try {
+      const tenantId = 1; // From auth in real implementation
+      const leads = await storage.getLeadsByTenant(tenantId);
+      res.json(leads);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get leads by campaign
+  app.get("/api/leads/campaign/:campaignId", async (req, res) => {
+    try {
+      const { campaignId } = req.params;
+      const tenantId = 1;
+      const leads = await storage.getLeadsByCampaign(tenantId, campaignId);
+      res.json(leads);
+    } catch (error) {
+      console.error("Error fetching campaign leads:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Update lead status
+  app.patch("/api/leads/:leadId", async (req, res) => {
+    try {
+      const { leadId } = req.params;
+      const { status, notes } = req.body;
+      const tenantId = 1;
+
+      const lead = await storage.updateLeadStatus(tenantId, parseInt(leadId), status, notes);
+      
+      if (!lead) {
+        return res.status(404).json({ error: "Lead not found" });
+      }
+
+      res.json(lead);
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Get leads analytics
+  app.get("/api/leads/analytics", async (req, res) => {
+    try {
+      const tenantId = 1;
+      
+      const [totalLeads, leadsBySource] = await Promise.all([
+        storage.getLeadsCount(tenantId),
+        storage.getLeadsBySource(tenantId)
+      ]);
+
+      res.json({
+        totalLeads,
+        leadsBySource
+      });
+    } catch (error) {
+      console.error("Error fetching leads analytics:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }

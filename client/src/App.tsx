@@ -15,6 +15,7 @@ import WebhookIntegration from "@/pages/webhook-integration";
 import ConversionLogs from "@/pages/conversion-logs";
 import ClickLogs from "@/pages/click-logs";
 import GeographyAnalytics from "@/pages/geography-analytics";
+import Leads from "@/pages/leads";
 import LoginPage from "@/pages/auth/login";
 import RegisterPage from "@/pages/auth/register";
 import AcceptInvitePage from "@/pages/auth/accept-invite";
@@ -92,6 +93,11 @@ function Router() {
             <Route path="/geography" component={() => (
               <ProtectedRoute>
                 <GeographyAnalytics />
+              </ProtectedRoute>
+            )} />
+            <Route path="/leads" component={() => (
+              <ProtectedRoute>
+                <Leads />
               </ProtectedRoute>
             )} />
             <Route path="/facebook" component={() => (

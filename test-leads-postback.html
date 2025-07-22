@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste de Leads - Postback MétricaClick</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background: #e2e3e5;
+            color: #383d41;
+            border: 1px solid #d6d8db;
+            margin-bottom: 20px;
+        }
+        .endpoint-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Teste de Leads - Sistema de Postback</h1>
+        
+        <div class="endpoint-info">
+            <strong>Endpoint:</strong> POST /leads<br>
+            <strong>Função:</strong> Capturar leads via postback e associar aos clicks de rastreamento<br>
+            <strong>Status:</strong> ✅ Sistema funcionando com geolocalização automática
+        </div>
+
+        <div class="info">
+📋 <strong>Funcionalidades Implementadas:</strong>
+
+✅ Endpoint /leads para postback externo
+✅ Associação automática com click_id
+✅ Prevenção de leads duplicados (email único)
+✅ Herança de dados geográficos do click associado
+✅ Dashboard completo de gestão de leads
+✅ Analytics de leads por fonte/status
+✅ Sistema de status (novo → contatado → qualificado → convertido)
+        </div>
+
+        <form id="leadForm">
+            <div class="form-group">
+                <label for="name">Nome *</label>
+                <input type="text" id="name" name="name" required placeholder="João da Silva">
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" required placeholder="joao@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Telefone</label>
+                <input type="tel" id="phone" name="phone" placeholder="+55 11 99999-9999">
+            </div>
+
+            <div class="form-group">
+                <label for="click_id">Click ID (para associação)</label>
+                <input type="text" id="click_id" name="click_id" placeholder="mc_automatikblog-main_1753192569126">
+            </div>
+
+            <div class="form-group">
+                <label for="campaign_id">Campaign ID</label>
+                <input type="text" id="campaign_id" name="campaign_id" placeholder="automatikblog-main">
+            </div>
+
+            <div class="form-group">
+                <label for="source">Fonte</label>
+                <select id="source" name="source">
+                    <option value="">Selecione...</option>
+                    <option value="facebook">Facebook</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="google">Google</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="email">Email</option>
+                    <option value="direct">Direto</option>
+                    <option value="organic">Orgânico</option>
+                    <option value="postback">Postback</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="medium">Meio</label>
+                <select id="medium" name="medium">
+                    <option value="">Selecione...</option>
+                    <option value="cpc">CPC (Pay-per-click)</option>
+                    <option value="social">Social Media</option>
+                    <option value="email">Email</option>
+                    <option value="organic">Orgânico</option>
+                    <option value="referral">Referência</option>
+                    <option value="display">Display</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="campaign">Nome da Campanha</label>
+                <input type="text" id="campaign" name="campaign" placeholder="campanha_teste_leads">
+            </div>
+
+            <button type="submit">📤 Enviar Lead via Postback</button>
+            <button type="button" onclick="fillSampleData()">📝 Preencher Dados de Teste</button>
+            <button type="button" onclick="viewLeads()">👀 Ver Leads no Dashboard</button>
+        </form>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function fillSampleData() {
+            // Gera dados aleatórios para teste
+            const names = ['Carlos Silva', 'Ana Costa', 'Pedro Oliveira', 'Maria Santos', 'João Pereira'];
+            const domains = ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'company.com'];
+            const sources = ['facebook', 'instagram', 'google', 'youtube'];
+            const mediums = ['cpc', 'social', 'email', 'organic'];
+            
+            const randomName = names[Math.floor(Math.random() * names.length)];
+            const randomEmail = randomName.toLowerCase().replace(' ', '.') + '@' + domains[Math.floor(Math.random() * domains.length)];
+            const randomPhone = '+55 11 9' + Math.floor(Math.random() * 90000000 + 10000000);
+            const randomSource = sources[Math.floor(Math.random() * sources.length)];
+            const randomMedium = mediums[Math.floor(Math.random() * mediums.length)];
+            
+            document.getElementById('name').value = randomName;
+            document.getElementById('email').value = randomEmail;
+            document.getElementById('phone').value = randomPhone;
+            document.getElementById('campaign_id').value = 'automatikblog-main';
+            document.getElementById('source').value = randomSource;
+            document.getElementById('medium').value = randomMedium;
+            document.getElementById('campaign').value = 'teste_leads_' + Date.now();
+        }
+
+        function viewLeads() {
+            window.open('/leads', '_blank');
+        }
+
+        document.getElementById('leadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (value.trim()) {
+                    data[key] = value.trim();
+                }
+            }
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Enviando lead...';
+            
+            try {
+                const response = await fetch('/leads', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `<div class="result success">✅ Lead criado com sucesso!
+
+📊 Dados do Lead:
+ID: ${result.lead.id}
+Nome: ${result.lead.name}
+Email: ${result.lead.email}
+Telefone: ${result.lead.phone || 'N/A'}
+Status: ${result.lead.status}
+
+🎯 Rastreamento:
+Click ID: ${result.lead.clickId || 'N/A'}
+Campaign ID: ${result.lead.campaignId || 'N/A'}
+Fonte: ${result.lead.source || 'N/A'}
+Meio: ${result.lead.medium || 'N/A'}
+
+📍 Localização:
+IP: ${result.lead.ipAddress || 'N/A'}
+País: ${result.lead.country || 'N/A'}
+Região: ${result.lead.region || 'N/A'}
+Cidade: ${result.lead.city || 'N/A'}
+
+⏰ Criado em: ${new Date(result.lead.createdAt).toLocaleString('pt-BR')}
+
+🎉 ${result.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="result error">❌ Erro: ${result.error}
+
+Detalhes: ${result.details || 'Nenhum detalhe adicional'}
+
+💡 Dica: ${result.error.includes('already exists') ? 'Este email já está cadastrado como lead.' : 'Verifique se todos os campos obrigatórios estão preenchidos.'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="result error">❌ Erro de conexão: ${error.message}
+
+🔧 Verifique se o servidor está rodando.</div>`;
+            }
+        });
+
+        // Preenche automaticamente alguns dados de teste na primeira carga
+        window.onload = function() {
+            fillSampleData();
+        };
+    </script>
+</body>
+</html>
