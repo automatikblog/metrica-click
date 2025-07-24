@@ -1,10 +1,18 @@
 {
   "version": 2,
-  "functions": {
-    "server/index.ts": {
-      "includeFiles": ["public/**", "shared/**"]
+  "builds": [
+    {
+      "src": "server/index.ts",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist/public"
+      }
     }
-  },
+  ],
   "routes": [
     {
       "src": "/mc.js",
@@ -42,6 +50,5 @@
   "env": {
     "NODE_ENV": "production",
     "VITE_API_URL": "https://metrica-click.vercel.app"
-  },
-  "buildCommand": "npm run build"
+  }
 }
