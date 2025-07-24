@@ -1,0 +1,47 @@
+{
+  "version": 2,
+  "functions": {
+    "server/index.ts": {
+      "includeFiles": ["public/**", "shared/**"]
+    }
+  },
+  "routes": [
+    {
+      "src": "/mc.js",
+      "dest": "/api/mc.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/track/(.*)",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/view",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/leads",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/conversion",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/error-log",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/public/index.html"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "VITE_API_URL": "https://metrica-click.vercel.app"
+  },
+  "buildCommand": "npm run build"
+}
