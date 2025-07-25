@@ -76,9 +76,9 @@ router.post('/logout', (req, res) => {
 });
 
 // GET /api/auth/user - Get current user info
-router.get('/user', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.get('/user', requireAuth, async (req, res) => {
   try {
-    const user = req.user;
+    const user = (req as AuthenticatedRequest).user;
     const tenant = await storage.getTenant(user.tenantId);
     
     res.json({
@@ -105,9 +105,9 @@ router.get('/user', requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 // POST /api/auth/refresh - Refresh token
-router.post('/refresh', requireAuth, async (req: AuthenticatedRequest, res) => {
+router.post('/refresh', requireAuth, async (req, res) => {
   try {
-    const newToken = await authService.refreshToken(req.user.id);
+    const newToken = await authService.refreshToken((req as AuthenticatedRequest).user.id);
     
     res.cookie('authToken', newToken, {
       httpOnly: true,

@@ -55,9 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    if (authData) {
-      setUser(authData.user);
-      setTenant(authData.tenant);
+    if (authData && (authData as any).user && (authData as any).tenant) {
+      setUser((authData as any).user);
+      setTenant((authData as any).tenant);
     } else {
       setUser(null);
       setTenant(null);
