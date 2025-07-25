@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "server/index.ts",
-      "use": "@vercel/node"
-    },
-    {
       "src": "package.json",
       "use": "@vercel/static-build",
       "config": {
@@ -13,6 +9,11 @@
       }
     }
   ],
+  "functions": {
+    "server/index.ts": {
+      "runtime": "@vercel/node@3"
+    }
+  },
   "routes": [
     {
       "src": "/mc.js",
@@ -43,12 +44,19 @@
       "dest": "/server/index.ts"
     },
     {
+      "src": "/health",
+      "dest": "/server/index.ts"
+    },
+    {
+      "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
+      "dest": "/dist/public/$1"
+    },
+    {
       "src": "/(.*)",
       "dest": "/dist/public/index.html"
     }
   ],
   "env": {
-    "NODE_ENV": "production",
-    "VITE_API_URL": "https://metrica-click.vercel.app"
+    "NODE_ENV": "production"
   }
 }
