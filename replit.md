@@ -1,5 +1,10 @@
 # MétricaClick - Traffic Tracking System
 
+## 🚀 PRODUÇÃO ATIVA
+- **Domínio**: https://metrica-click.vercel.app  
+- **Login**: automatikblog13@gmail.com / 123456
+- **Status**: Sistema funcionando com tracking ativo
+
 ## Overview
 
 MétricaClick is a comprehensive paid traffic tracking system similar to RedTrack. It tracks campaign clicks, manages attribution models, and stores tracking data using cookies and sessionStorage. The system consists of a React frontend dashboard for campaign management and analytics, an Express.js backend API, and a JavaScript tracking script that can be embedded on external websites.
@@ -125,6 +130,7 @@ MétricaClick is a comprehensive paid traffic tracking system similar to RedTrac
 - July 24, 2025. VERCEL DEPLOYMENT OPTIMIZATION: Fixed critical Vercel deployment issues where backend code was being served as frontend and mc.js script returned 404 errors. Implemented correct vercel.json configuration with separate builds for frontend/backend, created dedicated /api/mc.js endpoint with multiple fallback paths for script serving, added proper CORS headers and caching, resolved schema validation errors, and established complete routing structure. System now ready for production deployment on metricaclick.com.br domain with full tracking functionality.
 - July 25, 2025. CRITICAL VERCEL FRONTEND/BACKEND SEPARATION COMPLETE: Resolved critical issue where both metricaclick.com.br and metrica-click.vercel.app were serving compiled backend code instead of React frontend. Fixed vercel.json routing configuration to properly separate static frontend (dist/public/index.html) from serverless backend functions (server/index.ts), implemented correct asset serving for CSS/JS bundles, established proper SPA fallback routing, and created comprehensive deployment documentation. System architecture now correctly serves React dashboard on root domain with API endpoints on /api/* routes.
 - July 25, 2025. VERCEL DEPLOY CONFIGURATION FINAL FIX: Resolved "functions property cannot be used in conjunction with builds property" error by removing functions configuration and using only builds array with proper @vercel/node@3 runtime for server/index.ts. Fixed hardcoded "John Doe" avatar in dashboard header, now displays real authenticated user data. Created comprehensive VERCEL-DEPLOY-FINAL.md documentation with complete deployment instructions. System ready for automatic deployment from git commits to metricaclick.com.br domain.
+- July 25, 2025. VERCEL LOGIN ENVIRONMENT VARIABLES REQUIRED: Identified that production login is failing due to missing environment variables (DATABASE_URL, FACEBOOK_ACCESS_TOKEN, FACEBOOK_AD_ACCOUNT_ID) in Vercel deployment. Local system works perfectly, need to configure environment variables in Vercel dashboard for production authentication to function. Created VERCEL-ENV-SETUP.md with complete configuration instructions.
 
 ## User Preferences
 

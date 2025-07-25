@@ -16,11 +16,7 @@
   "routes": [
     {
       "src": "/mc.js",
-      "dest": "/api/mc.js"
-    },
-    {
-      "src": "/api/auth/(.*)",
-      "dest": "/api/auth/$1.js"
+      "dest": "/server/index.ts"
     },
     {
       "src": "/api/(.*)",
