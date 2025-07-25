@@ -1,5 +1,5 @@
-// Vercel Serverless Function para login
-export default function handler(req, res) {
+// Vercel Serverless Function para login (CommonJS)
+module.exports = function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -45,4 +45,4 @@ export default function handler(req, res) {
     console.error('Login error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
-}
+};

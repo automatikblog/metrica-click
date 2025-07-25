@@ -19,6 +19,10 @@
       "dest": "/api/mc.js"
     },
     {
+      "src": "/api/auth/(.*)",
+      "dest": "/api/auth/$1.js"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/server/index.ts"
     },

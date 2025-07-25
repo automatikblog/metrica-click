@@ -1,5 +1,5 @@
-// Vercel Serverless Function para script mc.js
-export default function handler(req, res) {
+// Vercel Serverless Function para script mc.js (CommonJS)
+module.exports = function handler(req, res) {
   try {
     // Script MétricaClick embutido
     const mcScript = `
@@ -99,4 +99,4 @@ export default function handler(req, res) {
     console.error('MC script error:', error);
     return res.status(500).json({ error: 'Failed to serve script' });
   }
-}
+};
