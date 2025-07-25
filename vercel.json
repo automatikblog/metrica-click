@@ -7,45 +7,22 @@
       "config": {
         "distDir": "dist/public"
       }
-    },
-    {
-      "src": "server/index.ts",
-      "use": "@vercel/node@3"
     }
   ],
   "routes": [
     {
-      "src": "/mc.js",
-      "dest": "/server/index.ts"
+      "src": "/api/auth/login",
+      "dest": "/api/auth/login-simple.js"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/server/index.ts"
+      "src": "/api/auth/register", 
+      "dest": "/api/auth/register-simple.js"
     },
     {
-      "src": "/track/(.*)",
-      "dest": "/server/index.ts"
+      "src": "/api/test",
+      "dest": "/api/test.js"
     },
-    {
-      "src": "/view",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/leads",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/conversion",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/error-log",
-      "dest": "/server/index.ts"
-    },
-    {
-      "src": "/health",
-      "dest": "/server/index.ts"
-    },
+
     {
       "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot))",
       "dest": "/dist/public/$1"
