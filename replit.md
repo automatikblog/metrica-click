@@ -1,7 +1,7 @@
 # MétricaClick - Traffic Tracking System
 
 ## 🚀 PRODUÇÃO ATIVA
-- **Domínio**: https://metrica-click.vercel.app  
+- **Domínio**: https://metricaclick.com.br  
 - **Login**: automatikblog13@gmail.com / 123456
 - **Status**: Sistema funcionando com tracking ativo
 
